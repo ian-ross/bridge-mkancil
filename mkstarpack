@@ -1,0 +1,35 @@
+#!/bin/sh
+
+set -x
+
+[ "$1" != "" ] && XANCIL=$1 || XANCIL=xancil
+[ "$2" != "" ] && LIBXANCIL=$2 || LIBXANCIL="xancil.so"
+
+TCLKIT=${TCLKIT:-$HOME/$PREFIXDIR/bin/tclkit}
+SDX=${SDX:-$HOME/bin/sdx}
+SDXWRAPOPT=${SDXWRAPOPT:-""}
+
+XANCILFILES="xancil_main.tcl functions.tcl leftbox.tcl rightbox.tcl \
+             gridconfig.tcl redbullet.gif bluebullet.gif xancildb.mk \
+             ozone.tcl smow.tcl slt.tcl soil.tcl veg.tcl vegfrac.tcl \
+             vegfunc.tcl vegdist.tcl sst.tcl ice.tcl orog.tcl mask.tcl \
+             ausrancil.tcl ausrmulti.tcl \
+             lfrac.tcl ts1.tcl flux.tcl \
+             ousrancil.tcl ousrmulti.tcl \
+             genanc_config.tcl genanc.tcl \
+             astart_config.tcl astart1.tcl astart2.tcl \
+             combobox.tcl scrolledframe.tcl $LIBXANCIL"
+
+rm -rf tclkitcopy
+cp $TCLKIT tclkitcopy
+rm -rf xancil.vfs
+mkdir -p xancil.vfs/lib/xancil
+mkdir -p xancil.vfs/lib/tablelist
+cp main.tcl xancil.vfs
+cp $XANCILFILES xancil.vfs/lib/xancil
+cp pkgIndex.tcl xancil.vfs/lib/xancil
+tar xvf tablelist_xancil.tar
+$SDX wrap xancil $SDXWRAPOPT
+mv xancil $XANCIL.kit
+$SDX wrap xancil $SDXWRAPOPT -runtime ./tclkitcopy
+[ "$XANCIL" != "xancil" ] && mv xancil $XANCIL

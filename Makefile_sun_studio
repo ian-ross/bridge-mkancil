@@ -1,0 +1,59 @@
+include makefile.inc
+
+LIBDIR=-L/usr/sfw/lib -L$(HOME)/$(PREFIXDIR)/lib
+INCDIR=-I/usr/sfw/include -I$(HOME)/include
+BINDIR=$(HOME)/$(PREFIXDIR)/bin
+
+LIBS= -B static -lnetcdf -lhdf5_hl -lhdf5 -lmfhdf -ldf -ljpeg -lz -lsz -B dynamic -lnsl
+
+LIBDIR_SHLIB=-L/usr/sfw/lib -L$(HOME)/$(PREFIXDIR)/lib
+INCDIR_SHLIB=-I/usr/sfw/include -I$(HOME)/include
+
+LIBS_SHLIB= -B static -lnetcdf -lhdf5_hl -lhdf5 -lmfhdf -ldf -ljpeg -lz -lsz -ltclstub8.3 -B dynamic -lnsl -lsocket -lm
+
+F90C=f95
+CC=cc
+
+OPT=-O
+DEFS= -DRTYPE=64 -DITYPE=32 -DPTYPE=32 -DOTYPE=64 -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64
+
+CPPFLAGS= $(INCDIR) $(DEFS)
+#F90FLAGS= -w4 $(OPT) $(CPPFLAGS)
+F90FLAGS= $(OPT) $(CPPFLAGS) -xarch=generic
+CFLAGS= $(OPT) -xarch=generic
+LDFLAGS= $(LIBDIR) $(LIBS) -xarch=generic
+
+CPPFLAGS_SHLIB= $(INCDIR_SHLIB) $(DEFS) -DUSE_TCL_STUBS
+CFLAGS_SHLIB= $(OPT) $(CPPFLAGS_SHLIB) -KPIC -xarch=generic
+LDFLAGS_SHLIB= $(LIBDIR_SHLIB) $(LIBS_SHLIB) -G -xarch=generic
+
+.SUFFIXES : .f90 .F90 .po
+
+.f90.o:
+	$(F90C) $(F90FLAGS) -c $<
+.F90.o:
+	$(F90C) $(F90FLAGS) -c $<
+.c.po:
+	$(CC) $(CFLAGS_SHLIB) -c -o $*.tmp.o $<
+	mv $*.tmp.o $@
+
+$(EXEC): $(OBJ)
+	$(F90C) $(OBJ) $(LDFLAGS) -o $(EXEC)
+
+$(SHLIB): $(POBJ)
+	$(CC) $(POBJ) $(LDFLAGS_SHLIB) -o $(SHLIB)
+
+$(XANCIL): mkstarpack $(TCL) $(SHLIB)
+	./mkstarpack $(XANCIL) $(SHLIB)
+
+bin: $(EXEC) $(XANCIL)
+	cp $(EXEC) $(XANCIL) $(BINDIR)
+
+mkancil:
+	@
+
+xancil:
+	@
+
+clean:
+	rm -rf *.o *.po *.mod $(EXEC) $(XANCIL) $(SHLIB) xancil.vfs $(XANCIL).kit tclkitcopy
