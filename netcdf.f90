@@ -1013,6 +1013,211 @@ end
 
 !==============================================================================!
 
+subroutine get_ncfield_r(ncid,varname,ilev,model, &
+                         itimeusage1,itimeusage2,istartdate1, &
+                         data,nsize)
+
+use getkind
+use types
+
+implicit none
+
+character(*) varname
+integer ncid,ilev,model,itimeusage1,itimeusage2,istartdate1(6),nsize
+real(rtype) data(nsize)
+
+integer, save :: dim(4),nx,ny,it(1)
+type(gridinfo), save :: grid
+
+! Get dimension values
+
+if (ilev == 1) then
+   call get_field_info(ncid,varname,model,nsize, &
+                       itimeusage1,itimeusage2,istartdate1, &
+                       grid,dim,nx,ny,it(1))
+endif
+
+! Get data values
+
+call get_ncdata_r(varname,ncid,ilev,it,grid,dim,nx,ny,1,1,data)
+
+return
+end
+
+!==============================================================================!
+
+subroutine get_ncfield_i(ncid,varname,ilev,model, &
+                         itimeusage1,itimeusage2,istartdate1, &
+                         data,nsize)
+
+use getkind
+use types
+
+implicit none
+
+character(*) varname
+integer ncid,ilev,model,itimeusage1,itimeusage2,istartdate1(6),nsize
+integer(itype) data(nsize)
+
+integer, save :: dim(4),nx,ny,it(1)
+type(gridinfo), save :: grid
+
+! Get dimension values
+
+if (ilev == 1) then
+   call get_field_info(ncid,varname,model,nsize, &
+                       itimeusage1,itimeusage2,istartdate1, &
+                       grid,dim,nx,ny,it(1))
+endif
+
+! Get data values
+
+call get_ncdata_i(varname,ncid,ilev,it,grid,dim,nx,ny,1,1,data)
+
+return
+end
+
+!==============================================================================!
+
+subroutine get_field_info(ncid,varname,model,nsize, &
+                          itimeusage1,itimeusage2,istartdate1, &
+                          grid,dim,nx,ny,it)
+
+use getkind
+use parameters
+use types
+
+implicit none
+
+character(*) varname
+integer ncid,model,type,nsize,itimeusage1,itimeusage2,istartdate1(6)
+integer dim(4),nx,ny,it
+type(gridinfo) grid
+
+integer intunit,iscale,ical
+integer nz,nt,istartdate2(6),idate(6)
+real(rtype), dimension(:), allocatable :: time
+character(max_varname_size) dimnames(4)
+
+! Get dimension values
+
+type = 1  ! data on atmospheric theta points
+
+call get_gridinfo(varname,ncid,dimnames,dim,nz,nt,model,type,grid)
+nx = grid%nlong
+ny = grid%nlat
+write(*,*)'dim = ',dim
+write(*,*)'nx,ny,nz,nt = ',nx,ny,nz,nt
+if (nsize /= nx*ny) then
+   write(*,*)'ERROR: field size from Netcdf file (',nx*ny, &
+             ') doesn''t match dump field size (',nsize,')'
+   stop
+endif
+
+if (itimeusage1 == 1 .and. itimeusage2 == 1) then
+   if (dim(4) < 1) then
+      write(*,*)'ERROR: Cannot read date from NetCDF file ', &
+                'as it has no time dimension'
+      stop 
+   endif
+
+   allocate(time(nt))
+
+   call get_ncdim(dimnames(4),ncid,time)
+   write(*,*)'time = ',time
+
+   call get_ncstartdate(dimnames(4),ncid,istartdate2,intunit,iscale)
+   write(*,*)'istartdate2 = ',istartdate2
+   write(*,*)'intunit = ',intunit
+   write(*,*)'iscale = ',iscale
+
+   call get_nccal(ncid,varname,ical)
+   write(*,*)'ical = ',ical
+
+   call setdumpdate(itimeusage1,itimeusage2,intunit,ical,iscale, &
+                    istartdate1,istartdate2,time,nt,it,idate)
+   write(*,*)'idate = ',idate
+
+   deallocate(time)
+else
+   it = 1
+endif
+
+write(*,*)'it = ',it
+
+return
+end
+
+!==============================================================================!
+
+subroutine get_ncdate(ncid,varname,idate)
+
+use getkind
+use parameters
+
+implicit none
+
+character(*) varname
+integer ncid,idate(6)
+
+integer intunit,iscale,ical,istartdate(6)
+integer ndims,nd(4),dim(4),dimid,i
+integer(i64) incr
+real(rtype) time
+character(max_varname_size) dimnames(4),dimname
+
+! Get calendar type from NetCDF file
+
+call get_nccal(ncid,varname,ical)
+write(*,*)'ical = ',ical
+
+! Get time dimension name and id
+
+call get_ncdiminfo(varname,ncid,nd,dimnames,ndims)
+call getdimid(varname,ncid,dimnames,dim,ndims)
+
+dimid = -1
+do i=1,ndims
+   if (dim(i) == 4) then
+      dimname = dimnames(i)
+      dimid = i
+      exit
+   endif
+enddo
+if (dimid < 1) then
+   write(*,*)'ERROR: Cannot read date from NetCDF file ', &
+             'as it has no time dimension'
+   stop 
+endif
+write(*,*)'dimname = ',dimname
+write(*,*)'dimid = ',dimid
+
+
+! Get first time value from NetCDF file
+
+call get_ncdim1(dimname, ncid, 1, time)
+write(*,*)'time = ',time
+
+! Get startdate from NetCDF file
+
+call get_ncstartdate(dimname,ncid,istartdate,intunit,iscale)
+write(*,*)'istartdate = ',istartdate
+write(*,*)'intunit = ',intunit
+write(*,*)'iscale = ',iscale
+
+! Get first date from NetCDF file
+
+if (intunit == 2 .or. intunit == 3 .or. intunit == 4) intunit = 5
+incr = nint(time*iscale)
+call incr_date(intunit,ical,istartdate,idate,incr,.false.)
+
+write(*,*)'idate = ',idate
+
+return
+end
+
+!==============================================================================!
+
 subroutine nc_error(ierr,procname,name)
 
 implicit none

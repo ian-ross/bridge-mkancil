@@ -1,8 +1,8 @@
 
 # Left hand side canvas
 
-set ngroup 6
-#set ngroup 8
+#set ngroup 6
+set ngroup 8
 set xorigin 20
 set yorigin 20
 set xspace 20
@@ -10,8 +10,8 @@ set yspace 20
 set yscrollbot [expr {$yorigin+$yspace}]
 
 set nentry(0) 1  ; set level(0) 0
-set nentry(1) 4  ; set level(1) 1
-#set nentry(1) 6  ; set level(1) 1
+#set nentry(1) 4  ; set level(1) 1
+set nentry(1) 6  ; set level(1) 1
 set nentry(2) 3  ; set level(2) 2
 set nentry(3) 15 ; set level(3) 2
 set nentry(4) 4  ; set level(4) 2

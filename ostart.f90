@@ -1,10 +1,12 @@
 
 !==============================================================================!
 
-subroutine create_astart1(filein,fileout,umfile,ncname, &
-                          lnewlsm,lusestdname,luseconfig, &
-                          nncfiles1,nitem,ncfileid,itemid, &
-                          itimeusage1,itimeusage2,istartdate)
+subroutine create_ostart(filein,fileout,umfile,ncname, &
+                         lusestdname,luseconfig, &
+                         nncfiles1,nitem,ncfileid,itemid, &
+                         itimeusage1,itimeusage2,istartdate, &
+                         lbathy,bathyfile,bathyncname, &
+                         lireplace,liadd,islandsfile)
 use getkind
 use lsmask
 use constants
@@ -16,40 +18,56 @@ implicit none
 
 integer nncfiles1,nitem,ncfileid(nitem+1),itemid(nitem+1)
 integer itimeusage1,itimeusage2,istartdate(6)
-logical lnewlsm,lusestdname,luseconfig
+logical lusestdname,luseconfig
 character(*) filein(nncfiles1),fileout,umfile,ncname(nitem+1)
+logical lbathy,lireplace,liadd
+character(*) bathyfile,bathyncname,islandsfile
 
+integer(itype), dimension(:), allocatable ::  dum
+logical l32bit_save,lwfio_save
+integer iwfio_size_save
+integer i
+integer max_isize,max_rsize
+integer model
+integer, dimension(:), allocatable :: ncid
+integer ierr
 character(3) intype,outtype
-character(max_varname_size) varname
-character(max_stdname_size) stdname
+logical lum
+logical lswappack
 integer(ptype) ichan,ochan
-integer(itype) fixhd(len_fixhd),ilookup(len_pphead_int)
-integer(itype) imodarr(100)
-integer(itype) , dimension(:), allocatable ::  dum
-integer(itype) istashcode,eof,n1,n2
-integer(otype) curpos,inewpos,onewpos,data_pos0,data_pos1,imaskin_pos,savepos
+integer(itype) fixhd(len_fixhd)
+integer(itype) istashcode,eof,n1
+integer(otype) onewpos,curpos,inewpos
+integer fixhd_160_i             ! Data start position.
+integer header_size,nrec
+character(max_stdname_size) stdname
+character(max_varname_size) varname
+integer get_daynum,date_time(8)
 integer modidx(100)
-integer model,ierr,i,ihead_dim,rhead_dim,nrec,fixhd_160_i,iitem,ilev
-integer header_size,nlandpts,nlandpts_new,ic,ipack_n2,ipack_n3
-integer max_isize,max_rsize,iwfio_size_save,data_size0,data_size1,mask_size
-integer date_time(8),get_daynum,imask_field
-integer num_unres_pts,rem_unres_pts,rem_unres_pts_prev,max_search,ndim,max_count
-integer(itype) , dimension(:), allocatable :: ihead,idata
-integer(itype) , dimension(:), allocatable :: data_pack,data_type
-integer(itype) , dimension(:), allocatable :: data_comp,stash_code
-integer(itype) , dimension(:), allocatable :: data_size_i,data_size_o
-integer , dimension(:,:), allocatable :: index
-integer , dimension(:), allocatable :: nsum,point,icount,ncid
-integer(otype) , dimension(:), allocatable :: data_pos_i,data_pos_o
+integer ihead_dim,rhead_dim
+integer(itype) , dimension(:), allocatable :: ihead
+real(rtype), dimension(:), allocatable :: rhead
+integer(itype) imodarr(100)
+real(rtype) rmodarr(100)
+integer(itype), dimension(:), allocatable :: data_pack,data_type
+integer(itype), dimension(:), allocatable :: stash_code
+integer(itype), dimension(:), allocatable :: data_size_i,data_size_o
+integer(otype), dimension(:), allocatable :: data_pos_i,data_pos_o
+integer(otype) data_pos0,data_pos1
+integer(itype) ilookup(len_pphead_int)
+real(rtype) rlookup(len_pphead_real)
+integer data_size0,data_size1
+integer ic
+integer(itype) n2
+integer(itype) , dimension(:), allocatable :: idata
+real(rtype) , dimension(:), allocatable :: rdata
+integer iitem,ilev
+logical lreplace
 integer(i32) , dimension(:), allocatable :: itmp32
-integer(i32) irmdi32,iunres_val32
-real(rtype) rlookup(len_pphead_real),rmodarr(100),unres_val
-real(rtype) , dimension(:), allocatable :: rhead,rdata,rtmp
-real(r32) rmdi32
-logical lum,l32bit_save,lwfio_save,lgetinputmask,lswappack,lreplace
-logical , dimension(:), allocatable :: lmaskin,mask1,unres_land
+real(rtype) , dimension(:), allocatable :: rtmp
 
-write(*,*)'Writing Atmosphere start dump ',trim(fileout)
+
+write (*,*) 'Writing Ocean start dump ', trim(fileout)
 
 ! Don't use l32bit, only write 32 bit packed data if input UM dump
 ! data is packed.
@@ -62,7 +80,6 @@ if (.not. luseconfig) then
    lwfio = .false.
    iwfio_size = 1
 endif
-write(*,*)'lnewlsm = ',lnewlsm
 write(*,*)'luseconfig = ',luseconfig
 write(*,*)'lwfio = ',lwfio
 write(*,*)'iwfio_size = ',iwfio_size
@@ -80,41 +97,26 @@ if (luseconfig .and. lwfio .and. iwfio_size > 1) then
    allocate (dum(iwfio_size))
    dum = 0
 endif
-lgetinputmask = lnewlsm
-imask_field = -1
 max_isize = 0
 max_rsize = 0
 ncfileid(nitem+1) = -999
 itemid(nitem+1) = -999
 ncname(nitem+1) = ''
-model = 1 ! Atmosphere model
+model = 2 ! Ocean model
 
 ! Open NetCDF files for later use
 
 if (nitem > 0) then
    if (nncfiles1 == 0) then
-      write(*,*)'ERROR: No NetCDF files specified to overwrite '// &
-                'atmosphere start dump data'
+      write (*,*) 'ERROR: No NetCDF files specified to overwrite '// &
+                  'ocean start dump data'
       stop
    endif
 
    allocate (ncid(nncfiles1))
-   do i=1,nncfiles1
-      call open_ncfile(filein(i),'r',ncid(i),ierr)
+   do i = 1, nncfiles1
+      call open_ncfile(filein(i), 'r', ncid(i), ierr)
    enddo
-endif
-
-if (lnewlsm) then
-   nlandpts_new = count(mask)
-   write(*,*)'nlandpts_new = ',nlandpts_new
-   rmdi32 = rmdi
-   irmdi32 = transfer(rmdi32,0_i32)
-   unres_val = -99.0_rtype
-   iunres_val32 = transfer(-99.0_r32,0_i32)
-   if (lbigend .neqv. lbigendout) then
-      call swapbytes(irmdi32,4,1)
-      call swapbytes(iunres_val32,4,1)
-   endif
 endif
 
 call pptype(umfile,lum,intype)
@@ -170,6 +172,17 @@ if (luseconfig) then
       fixhd(160) = fixhd(150) + fixhd(151)*fixhd(152)
    endif
 endif
+
+
+! Check that file uses uncompressed data if we're going to try to
+! extract additional data from NetCDF files.
+
+if ((fixhd(141) > 1 .or. fixhd(143) > 1 .or. fixhd(145) > 1) &
+     .and. nitem > 0) then
+   write (*,*) 'ERROR: Can''t convert NetCDF data to compressed UM format'
+   stop
+endif
+
 
 ! Get new dump date from NetCDF file
 
@@ -230,6 +243,9 @@ fixhd(35:37) = date_time(1:3)
 fixhd(38:40) = date_time(5:7)
 fixhd(41) = get_daynum(fixhd(35),fixhd(36),fixhd(37),1)
 
+!==> MAY NEED TO REWRITE THIS LATER IF THE SIZE OF THE ISLAND DATA
+!    CHANGES (OR JUST MOVE WRITING THE HEADER UNTIL AFTER WE KNOW
+!    EXACTLY HOW BIG IT SHOULD BE)
 call wrtblki(fixhd,len_fixhd,len_fixhd,ochan,onewpos)
 
 modidx(1) = -1
@@ -264,19 +280,8 @@ allocate (rhead(rhead_dim))
 if (fixhd(101) > 0) then
    inewpos = fixhd(100)
    onewpos = fixhd(100)
-   if (lnewlsm) then
-      imodarr(1) = nlandpts_new
-      modidx(1) = 25
-      modidx(2) = -1
-   endif
    call readwrite_head_i(ichan,ochan,inewpos,onewpos, &
                          ihead,fixhd(101),imodarr,modidx,ierr)
-   if (lnewlsm) then
-      nlandpts = imodarr(1)
-      modidx(1) = -1
-   else
-      nlandpts = ihead(25)
-   endif
 endif
 
 if (fixhd(106) > 0) then
@@ -310,10 +315,17 @@ endif
 if (fixhd(126) > 0) then
    inewpos = fixhd(125)
    onewpos = fixhd(125)
-   call readwrite_head_r(ichan,ochan,inewpos,onewpos, &
-                         rhead,fixhd(126)*fixhd(127),rmodarr,modidx,ierr)
+   if (lbathy) then
+      call modify_bathymetry(ichan,ochan,inewpos,onewpos, &
+           fixhd(126)*fixhd(127),bathyfile,bathyncname)
+   else
+      call readwrite_head_r(ichan,ochan,inewpos,onewpos, &
+           rhead,fixhd(126)*fixhd(127),rmodarr,modidx,ierr)
+   endif
 endif
 
+!==> OVERWRITE ISLAND DATA HERE IF REQUIRED, MODIFYING POSITIONS FOR
+!    FOLLOWING DATA
 if (fixhd(131) > 0) then
    inewpos = fixhd(130)
    onewpos = fixhd(130)
@@ -353,7 +365,6 @@ deallocate (ihead,rhead)
 
 allocate(data_type(fixhd(152)))
 allocate(data_pack(fixhd(152)))
-allocate(data_comp(fixhd(152)))
 allocate(stash_code(fixhd(152)))
 allocate(data_size_i(fixhd(152)))
 allocate(data_size_o(fixhd(152)))
@@ -375,10 +386,14 @@ do i=1,fixhd(152)
    call rdblkr(rlookup,len_pphead_real,len_pphead_real,ichan,inewpos,eof)
 
    stash_code(i) = ilookup(42)
+   if (ilookup(21) /= 0 .and. ilookup(21) /= 2) then
+      write (*,*) 'ERROR: only LBPACK=0 or 2 supported for ocean dump files'
+      stop
+   endif
    if (intype(3:3) == '4') then
       data_pack(i) = 0
    else
-      data_pack(i) = mod(ilookup(21),10)
+      data_pack(i) = ilookup(21)
    endif
    data_pos_i(i) = ilookup(29)
    if (data_pack(i) == 2 .and. itype == i64) then
@@ -387,60 +402,8 @@ do i=1,fixhd(152)
       data_size_i(i) = ilookup(15)
    endif
    data_type(i) = ilookup(39)
- 
-!  Get land/sea mask data from dump if needed
-
-   if (lgetinputmask .and. ilookup(42) == 30) then
-      if (ilookup(19) == mask_grid%nlong .and. &
-          ilookup(18) == mask_grid%nlat) then 
-         lgetinputmask = .false.
-         imask_field = i
-         mask_size = ilookup(19)*ilookup(18)
-         allocate(lmaskin(mask_size))
-         savepos = inewpos
-         if (ilookup(29) /= 0 .and. ilookup(29) /= imdi) then
-            imaskin_pos = ilookup(29)+1
-         else
-            imaskin_pos = data_pos1+1
-         endif
-         write(*,*)'imaskin_pos = ',imaskin_pos
-         call read_data_i(ichan,imaskin_pos,lmaskin,ilookup(19),ilookup(18))
-         call skip(ichan,inewpos,savepos)
-         write(*,*)'input nlandpts = ',count(lmaskin)
-      else
-         write(*,*)'Wrong size mask at position ',i
-         write(*,*)ilookup(19),mask_grid%nlong
-         write(*,*)ilookup(18),mask_grid%nlat
-      endif
-   endif
-   if (lgetinputmask) then
-      if (data_pack(i) == 2) then
-         data_size1 = (ilookup(15)+1)/2
-      else
-         data_size1 = ilookup(15)
-      endif
-      data_pos1 = data_pos1 + data_size1
-   endif
 
 !  Modify PP header
-
-   ipack_n2 = mod(ilookup(21),100)/10
-   ipack_n3 = mod(ilookup(21),1000)/100
-   if (ipack_n2 == 2) then
-      data_comp(i) = ipack_n3
-   else
-      data_comp(i) = 0
-   endif
-   if (ipack_n2 == 2 .and. ipack_n3 == 1 .and. lnewlsm) &
-      ilookup(15) = nlandpts_new
-   if (lnewlsm) then
-      ipack_n2 = mod(ilookup(21),100)/10
-      ipack_n3 = mod(ilookup(21),1000)/100
-      if (ipack_n2 == 2 .and. ipack_n3 == 1) ilookup(15) = nlandpts_new
-   endif
-   if (intype(3:3) == '4' .or. outtype(3:3) == '4') then
-      ilookup(21) = (ilookup(21)/10)*10
-   endif
 
    if (luseconfig) then
       ic = mod(ilookup(13),10)
@@ -482,7 +445,7 @@ do i=1,fixhd(152)
    data_pos_o(i) = ilookup(29)
    if ((.not. luseconfig .or. lwfio) .and. &
        ilookup(30) /= 0 .and. ilookup(30) /= IMDI) then
-      if (mod(ilookup(21),10) == 2 .and. itype == i32) then
+      if (ilookup(21) == 2 .and. itype == i32) then
          data_size_o(i) = 2*ilookup(30)
       else
          data_size_o(i) = ilookup(30)
@@ -515,48 +478,6 @@ if (luseconfig .and. lwfio .and. iwfio_size > 1) then
    deallocate(dum)
 endif
 
-if (lnewlsm .and. .not. allocated(lmaskin)) then
-   write(*,*)'ERROR: Land mask not found in UM dump'
-   stop
-endif
-
-if (lnewlsm) then
-   allocate(mask1(mask_size))
-   allocate(unres_land(mask_size))
-   unres_land = reshape(mask,(/1/)) .and. .not. lmaskin
-   num_unres_pts = count(unres_land)
-   rem_unres_pts = 0
-   write(*,*)'num_unres_pts = ',num_unres_pts
-   max_search = 8
-   mask1 = lmaskin
-   ndim = (2*max_search+1)*(2*max_search+1)-1
-   allocate(index(num_unres_pts,ndim))
-   allocate(nsum(num_unres_pts))
-   allocate(point(num_unres_pts))
-   allocate(icount(num_unres_pts))
-   index = 0
-   nsum = 0
-   point = 0
-   icount = 0
-
-   do while(.true.)
-      rem_unres_pts_prev = rem_unres_pts
-      call data_extrap_index(lmaskin,mask1,mask,index,point,nsum,icount, &
-                             mask_grid%nlat,mask_grid%nlong, &
-                             num_unres_pts,rem_unres_pts,max_search, &
-                             .true.,mask_grid%lglobal)
-      write(*,*)'rem_unres_pts = ',rem_unres_pts
-      if (rem_unres_pts == 0) exit
-      if (rem_unres_pts == rem_unres_pts_prev) then
-         write(*,*)'Warning there are ',rem_unres_pts, &
-                   'unresolved land points in new land/sea mask'
-         exit
-      endif
-   enddo
-   max_count = maxval(icount)
-   write(*,*)'max_count = ',max_count
-endif
-
 write(*,*)'max_isize = ',max_isize
 write(*,*)'max_rsize = ',max_rsize
 if (max_isize > 0) allocate(idata(max_isize))
@@ -575,17 +496,7 @@ do i=1,fixhd(152)
 
    lreplace = lreplace .or. (iitem <= nitem .and. i == itemid(iitem))
 
-   if (lnewlsm .and. i == imask_field) then
-
-!     Replace mask field
-
-      write(*,*)'Replacing land mask'
-      inewpos = inewpos + data_size_i(i)
-      call skip(ichan,curpos,inewpos)
-
-      idata = transfer(mask,0_itype,data_size_o(i))
-
-   else if (lreplace) then
+   if (lreplace) then
 
 !     Replace field with data from netcdf file
 
@@ -669,28 +580,6 @@ do i=1,fixhd(152)
          idata = 0
          call read_data_i (ichan,inewpos,idata,data_size_i(i),1)
       endif
-
-!     Copy land compressed field to new land mask
-
-      if (lnewlsm .and. data_comp(i) == 1) then
-         if (data_pack(i) == 2) then
-            if (.not. allocated(itmp32)) allocate(itmp32(mask_size))
-            call uncomp_land_data32(idata,nlandpts,irmdi32, &
-                                    itmp32,lmaskin,mask_size)
-            where(unres_land) itmp32 = iunres_val32
-            call data_extrap32(itmp32,index,nsum,point,icount,max_count, &
-                               mask_size,num_unres_pts,ndim)
-            call comp_land_data32(itmp32,mask,mask_size,idata,nlandpts_new)
-         else
-            if (.not. allocated(rtmp)) allocate(rtmp(mask_size))
-            call uncomp_land_data(rdata,nlandpts,rmdi, &
-                                  rtmp,lmaskin,mask_size)
-            where(unres_land) rtmp = unres_val
-            call data_extrap(rtmp,index,nsum,point,icount,max_count, &
-                             mask_size,num_unres_pts,ndim)
-            call comp_land_data(rtmp,mask,mask_size,rdata,nlandpts_new)
-         endif
-      endif
    endif
 
 !  Write out data
@@ -718,11 +607,7 @@ if (nitem > 0) then
    deallocate (ncid)
 endif
 
-if (lnewlsm) then
-   deallocate(lmaskin,unres_land,mask1)
-   deallocate(index,point,nsum,icount)
-endif
-deallocate (data_pack,data_type,data_comp,stash_code)
+deallocate (data_pack,data_type,stash_code)
 deallocate (data_size_i,data_size_o,data_pos_i,data_pos_o)
 if (max_isize > 0) deallocate(idata)
 if (max_rsize > 0) deallocate(rdata)
@@ -741,3 +626,30 @@ endif
 return
 end
 
+
+
+subroutine modify_bathymetry(ichan,ochan,inewpos,onewpos, &
+     bathysize,bathyfile,bathyncname)
+
+use getkind
+
+implicit none
+
+integer(ptype) ichan, ochan
+integer(otype) onewpos,inewpos
+integer(itype) bathysize
+character(*) bathyfile,bathyncname
+
+write (*,*) 'Replacing bathymetry data from file: ', trim(bathyfile), &
+     ', variable: ', trim(bathyncname)
+
+! Determine type of replacement bathymetry variable.
+
+! If it's an integer, assume it's the depth mask as a layer count.  If
+! it's a floating point variable, assume that it's water depth and
+! calculate the depth mask based on the ocean model levels.
+
+! Write the new depth mask data.
+
+return
+end

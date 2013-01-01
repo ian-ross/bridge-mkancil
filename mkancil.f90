@@ -424,6 +424,32 @@ namelist /nam_astart/ iastart_timeusage1,iastart_timeusage2,iastart_startdate, &
                       lastart2, &
                       astart_filein,astart_fileout,astart1_umfile,astart1_ncname
 
+! ostart namelist
+
+integer iostart_timeusage1,iostart_timeusage2,iostart_startdate(6)
+integer iostart_nncfiles
+integer iostart_nitem,iostart_ncfileid(max_nitem),iostart_itemid(max_nitem)
+logical lostart,lostart_usestdname,lostart_useconfig
+character(max_filename_size) ostart_filein(max_nncfiles)
+character(max_filename_size) ostart_fileout
+character(max_filename_size) ostart_umfile
+character(max_varname_size) ostart_ncname(max_nitem)
+logical lostart_bathy
+character(max_filename_size) ostart_bathy_filein
+character(max_varname_size) ostart_bathy_ncname
+logical lostart_islands_replace, lostart_islands_add
+character(max_filename_size) ostart_islands_filein
+
+namelist /nam_ostart/ iostart_timeusage1,iostart_timeusage2,iostart_startdate, &
+                      iostart_nncfiles,iostart_nitem,iostart_ncfileid, &
+                      iostart_itemid, &
+                      lostart,lostart_usestdname,lostart_useconfig, &
+                      ostart_filein,ostart_fileout,ostart_umfile, &
+                      ostart_ncname, &
+                      lostart_bathy,ostart_bathy_filein,ostart_bathy_ncname, &
+                      lostart_islands_replace,lostart_islands_add, &
+                      ostart_islands_filein
+
 integer i, j, k, ierr, ifile
 
 ! These 3 arrays are used so that user ancil files can call genanc routine
@@ -496,6 +522,13 @@ lastart1_useconfig = .false.
 iastart1_nitem = 0
 iastart1_ncfileid = 1
 lastart2 = .false.
+lostart = .false.
+iostart_nncfiles = 1
+lostart_bathy = .false.
+lostart_islands_replace = .false.
+lostart_islands_add = .false.
+iostart_nitem = 0
+iostart_ncfileid = 1
 
 ! read namelists
 
@@ -568,8 +601,11 @@ read(*,nam_genanc_config)
 read(*,nam_genanc)
 !write(*,nam_genanc)
 
-!read(*,nam_astart)
+read(*,nam_astart)
 !write(*,nam_astart)
+
+read(*,nam_ostart)
+!write(*,nam_ostart)
 
 if (isize == 32) l32bit = .false.
 
@@ -658,6 +694,20 @@ endif
 
 if (iastart1_nitem > max_nitem) then
    write(*,*)'ERROR: iastart1_nitem = ',iastart1_nitem, &
+             ' > max_nitem = ',max_nitem
+   write(*,*)'Increase max_nitem and recompile mkancil'
+   ierr = 1
+endif
+
+if (iostart_nncfiles > max_nncfiles) then
+   write(*,*)'ERROR: iostart_nncfiles = ',iostart_nncfiles, &
+             ' > max_nncfiles = ',max_nncfiles
+   write(*,*)'Increase max_nncfiles and recompile mkancil'
+   ierr = 1
+endif
+
+if (iostart_nitem > max_nitem) then
+   write(*,*)'ERROR: iostart_nitem = ',iostart_nitem, &
              ' > max_nitem = ',max_nitem
    write(*,*)'Increase max_nitem and recompile mkancil'
    ierr = 1
@@ -995,17 +1045,27 @@ do ifile=1,nancfiles
    endif
 enddo
 
-!if (lastart .and. lastart1) &
-!   call create_astart1(astart_filein,astart_fileout, &
-!                       astart1_umfile,astart1_ncname, &
-!                       lastart_newlsm,lastart1_usestdname,lastart1_useconfig, &
-!                       iastart_nncfiles,iastart1_nitem, &
-!                       iastart1_ncfileid,iastart1_itemid, &
-!                       iastart_timeusage1,iastart_timeusage2, &
-!                       iastart_startdate)
+if (lastart .and. lastart1) &
+  call create_astart1(astart_filein,astart_fileout, &
+                      astart1_umfile,astart1_ncname, &
+                      lastart_newlsm,lastart1_usestdname,lastart1_useconfig, &
+                      iastart_nncfiles,iastart1_nitem, &
+                      iastart1_ncfileid,iastart1_itemid, &
+                      iastart_timeusage1,iastart_timeusage2, &
+                      iastart_startdate)
 
-!if (lastart .and. lastart2) &
+! if (lastart .and. lastart2) &
 !   call create_astart2()
+
+if (lostart) &
+  call create_ostart(ostart_filein,ostart_fileout,ostart_umfile,ostart_ncname, &
+                     lostart_usestdname,lostart_useconfig, &
+                     iostart_nncfiles,iostart_nitem, &
+                     iostart_ncfileid,iostart_itemid, &
+                     iostart_timeusage1,iostart_timeusage2,iostart_startdate, &
+                     lostart_bathy,ostart_bathy_filein,ostart_bathy_ncname, &
+                     lostart_islands_replace,lostart_islands_add, &
+                     ostart_islands_filein)
 
 write(*,*)'End of mkancil'
 write(*,*)

@@ -11,7 +11,7 @@ shlib: $(SHLIB)
 OBJ= module.o mkancil.o writeancil.o netcdf.o usermod.o \
      util_xancil.o ffio_xancil.o pptype.o \
      mask.o lfrac.o ozone.o smow.o slt.o soil.o veg.o vegfrac.o vegfunc.o \
-     vegdist.o sstice.o orog.o ts1.o flux.o genanc.o astart.o
+     vegdist.o sstice.o orog.o ts1.o flux.o genanc.o astart.o ostart.o
 
 POBJ= util_xancil.po xancil_Init.po xio_xancil.po
 
@@ -41,6 +41,7 @@ ts1.o: ts1.f90 module.F90
 flux.o: flux.f90 module.F90
 genanc.o: genanc.f90 module.F90
 astart.o: astart.f90 module.F90
+ostart.o: ostart.f90 module.F90
 util_xancil.o: util_xancil.c util_xancil.h
 ffio_conv3264.o: ffio_conv3264.c util_xancil.h
 pptype.o: pptype.c util_xancil.h
