@@ -434,7 +434,7 @@ character(max_filename_size) ostart_filein(max_nncfiles)
 character(max_filename_size) ostart_fileout
 character(max_filename_size) ostart_umfile
 character(max_varname_size) ostart_ncname(max_nitem)
-logical lostart_bathy
+logical lostart_bathy,lostart_bathy_depthmask
 character(max_filename_size) ostart_bathy_filein
 character(max_varname_size) ostart_bathy_ncname
 logical lostart_islands_replace, lostart_islands_add
@@ -447,6 +447,7 @@ namelist /nam_ostart/ iostart_timeusage1,iostart_timeusage2,iostart_startdate, &
                       ostart_filein,ostart_fileout,ostart_umfile, &
                       ostart_ncname, &
                       lostart_bathy,ostart_bathy_filein,ostart_bathy_ncname, &
+                      lostart_bathy_depthmask, &
                       lostart_islands_replace,lostart_islands_add, &
                       ostart_islands_filein
 
@@ -525,6 +526,7 @@ lastart2 = .false.
 lostart = .false.
 iostart_nncfiles = 1
 lostart_bathy = .false.
+lostart_bathy_depthmask = .true.
 lostart_islands_replace = .false.
 lostart_islands_add = .false.
 iostart_nitem = 0
@@ -1064,6 +1066,7 @@ if (lostart) &
                      iostart_ncfileid,iostart_itemid, &
                      iostart_timeusage1,iostart_timeusage2,iostart_startdate, &
                      lostart_bathy,ostart_bathy_filein,ostart_bathy_ncname, &
+                     lostart_bathy_depthmask, &
                      lostart_islands_replace,lostart_islands_add, &
                      ostart_islands_filein)
 

@@ -9,19 +9,20 @@ LIBS=-lnetcdff -lnetcdf
 LIBDIR_SHLIB=
 INCDIR_SHLIB=-I$(HOME)/include
 
-LIBS_SHLIB=-lnetcdff -lnetcdf -ltclstub8.5
+LIBS_SHLIB=-lnetcdff -lnetcdf -ltclstub8.6
 
 F90C=gfortran
 CC=gcc
 
 OPT=-O
+#OPT=-g
 DEFS= -DRTYPE=64 -DITYPE=32 -DPTYPE=64 -DOTYPE=64
 
 CPPFLAGS= $(INCDIR) $(DEFS)
 #F90FLAGS= -std=f2003 -Wall -pedantic -W $(OPT) $(CPPFLAGS)
 F90FLAGS= $(OPT) $(CPPFLAGS) -I/usr/include
 CFLAGS= $(OPT)
-LDFLAGS= $(LIBDIR) $(LIBS)
+LDFLAGS=$(LIBDIR) $(LIBS)
 LD=gfortran
 
 CPPFLAGS_SHLIB= $(INCDIR_SHLIB) $(DEFS) -DUSE_TCL_STUBS

@@ -5,7 +5,7 @@ subroutine create_ostart(filein,fileout,umfile,ncname, &
                          lusestdname,luseconfig, &
                          nncfiles1,nitem,ncfileid,itemid, &
                          itimeusage1,itimeusage2,istartdate, &
-                         lbathy,bathyfile,bathyncname, &
+                         lbathy,bathyfile,bathyncname,lbathydepthmask, &
                          lireplace,liadd,islandsfile)
 use getkind
 use lsmask
@@ -20,32 +20,25 @@ integer nncfiles1,nitem,ncfileid(nitem+1),itemid(nitem+1)
 integer itimeusage1,itimeusage2,istartdate(6)
 logical lusestdname,luseconfig
 character(*) filein(nncfiles1),fileout,umfile,ncname(nitem+1)
-logical lbathy,lireplace,liadd
+logical lbathy,lbathydepthmask,lireplace,liadd
 character(*) bathyfile,bathyncname,islandsfile
 
 integer(itype), dimension(:), allocatable ::  dum
-logical l32bit_save,lwfio_save
-integer iwfio_size_save
-integer i
-integer max_isize,max_rsize
-integer model
+logical l32bit_save,lwfio_save,lum,lswappack
+integer iwfio_size_save,max_isize,max_rsize
+integer i,ierr,model
 integer, dimension(:), allocatable :: ncid
-integer ierr
 character(3) intype,outtype
-logical lum
-logical lswappack
 integer(ptype) ichan,ochan
-integer(itype) fixhd(len_fixhd)
-integer(itype) istashcode,eof,n1
+integer(itype) fixhd(len_fixhd),istashcode,eof,n1
 integer(otype) onewpos,curpos,inewpos
 integer fixhd_160_i             ! Data start position.
 integer header_size,nrec
 character(max_stdname_size) stdname
 character(max_varname_size) varname
 integer get_daynum,date_time(8)
-integer modidx(100)
-integer ihead_dim,rhead_dim
-integer(itype) , dimension(:), allocatable :: ihead
+integer modidx(100),ihead_dim,rhead_dim
+integer(itype), dimension(:), allocatable :: ihead
 real(rtype), dimension(:), allocatable :: rhead
 integer(itype) imodarr(100)
 real(rtype) rmodarr(100)
@@ -56,15 +49,17 @@ integer(otype), dimension(:), allocatable :: data_pos_i,data_pos_o
 integer(otype) data_pos0,data_pos1
 integer(itype) ilookup(len_pphead_int)
 real(rtype) rlookup(len_pphead_real)
-integer data_size0,data_size1
-integer ic
+integer data_size0,data_size1,ic
 integer(itype) n2
-integer(itype) , dimension(:), allocatable :: idata
-real(rtype) , dimension(:), allocatable :: rdata
+integer(itype), dimension(:), allocatable :: idata
+real(rtype), dimension(:), allocatable :: rdata
 integer iitem,ilev
 logical lreplace
-integer(i32) , dimension(:), allocatable :: itmp32
-real(rtype) , dimension(:), allocatable :: rtmp
+integer(i32), dimension(:), allocatable :: itmp32
+real(rtype), dimension(:), allocatable :: rtmp
+logical lgotoceanlevels
+integer noceanlevels
+real(rtype), dimension(:), allocatable :: oceanlevels
 
 
 write (*,*) 'Writing Ocean start dump ', trim(fileout)
@@ -242,6 +237,7 @@ call date_and_time(values=date_time)
 fixhd(35:37) = date_time(1:3)
 fixhd(38:40) = date_time(5:7)
 fixhd(41) = get_daynum(fixhd(35),fixhd(36),fixhd(37),1)
+write(*,*) 'fixhd(41)=', fixhd(41)
 
 !==> MAY NEED TO REWRITE THIS LATER IF THE SIZE OF THE ISLAND DATA
 !    CHANGES (OR JUST MOVE WRITING THE HEADER UNTIL AFTER WE KNOW
@@ -291,11 +287,19 @@ if (fixhd(106) > 0) then
                          rhead,fixhd(106),rmodarr,modidx,ierr)
 endif
 
+lgotoceanlevels = .FALSE.
 if (fixhd(111) > 0) then
    inewpos = fixhd(110)
    onewpos = fixhd(110)
+   lgotoceanlevels = .TRUE.
    call readwrite_head_r(ichan,ochan,inewpos,onewpos, &
                          rhead,fixhd(111)*fixhd(112),rmodarr,modidx,ierr)
+   noceanlevels = fixhd(111) * fixhd(112)
+   allocate(oceanlevels(noceanlevels))
+   oceanlevels(1) = rhead(1)
+   do i = 2, noceanlevels
+      oceanlevels(i) = oceanlevels(i-1) + rhead(i)
+   end do
 endif
 
 if (fixhd(116) > 0) then
@@ -316,8 +320,14 @@ if (fixhd(126) > 0) then
    inewpos = fixhd(125)
    onewpos = fixhd(125)
    if (lbathy) then
-      call modify_bathymetry(ichan,ochan,inewpos,onewpos, &
-           fixhd(126)*fixhd(127),bathyfile,bathyncname)
+      if (lgotoceanlevels) then
+         call modify_bathymetry(ichan,ochan,inewpos,onewpos, &
+              fixhd(126)*fixhd(127),bathyfile,bathyncname,lbathydepthmask, &
+              noceanlevels, oceanlevels)
+      else
+         write (*,*) 'No ocean model levels for bathymetry modification'
+         stop
+      end if
    else
       call readwrite_head_r(ichan,ochan,inewpos,onewpos, &
            rhead,fixhd(126)*fixhd(127),rmodarr,modidx,ierr)
@@ -586,7 +596,8 @@ do i=1,fixhd(152)
 
    if (data_pos_o(i) /= 0 .and. data_pos_o(i) /= IMDI) onewpos = data_pos_o(i)+1
 
-   if (i==1 .or. i==fixhd(152)) write(*,*)i,data_size_o(i),data_pos_o(i),onewpos
+   if (i==1 .or. i==fixhd(152)) &
+        write(*,*)i,data_size_o(i),data_pos_o(i),onewpos
 
    if (data_pack(i) == 2) then
       call write_data_p (ochan,onewpos,idata,data_size_o(i),1)
@@ -627,29 +638,109 @@ return
 end
 
 
+!===============================================================================
+!
+!  Modify bathymetry mask in "fields of constants" section of header
+!  based on input from a NetCDF file (either a depth mask as layer
+!  counts, or actual water depth values, which are converted to a
+!  depth mask based on comparison with the model layer thicknesses).
+!
 
-subroutine modify_bathymetry(ichan,ochan,inewpos,onewpos, &
-     bathysize,bathyfile,bathyncname)
+subroutine modify_bathymetry(ichan, ochan, inewpos, onewpos, &
+                             bathysize, bathyfile, bathyncname, &
+                             ldepthmask, nlev, levels)
 
 use getkind
+use parameters
+use types
 
 implicit none
 
 integer(ptype) ichan, ochan
-integer(otype) onewpos,inewpos
+integer(otype) onewpos, inewpos
 integer(itype) bathysize
-character(*) bathyfile,bathyncname
+character(*) bathyfile, bathyncname
+logical ldepthmask
+integer nlev
+real(rtype) levels(nlev)
+
+integer ncid,ierr
+logical isncvarint
+character(max_varname_size) dimnames(4)
+integer dim(4), nz, nt
+type(gridinfo) grid
+integer, dimension(:), allocatable :: idepthmask
+real(rtype), dimension(:), allocatable :: rdepthmask
+real(rtype), dimension(:), allocatable :: waterdepth
+integer i, ilev
+integer(otype) curpos
+
 
 write (*,*) 'Replacing bathymetry data from file: ', trim(bathyfile), &
      ', variable: ', trim(bathyncname)
 
-! Determine type of replacement bathymetry variable.
+! Open NetCDF file.
+call open_ncfile(bathyfile, 'r', ncid, ierr)
 
-! If it's an integer, assume it's the depth mask as a layer count.  If
-! it's a floating point variable, assume that it's water depth and
-! calculate the depth mask based on the ocean model levels.
+! Check grid against existing ocean grid.
+call get_gridinfo(bathyncname, ncid, dimnames, dim, nz, nt, 2, 1, grid)
+if (grid%nlat * grid%nlong /= bathysize) then
+   write (*,*) 'Grid size mismatch for replacement bathymetry data'
+   stop
+end if
+
+! Allocate space for depthmask data.
+allocate(rdepthmask(bathysize))
+
+! Determine type of replacement bathymetry variable.
+if (ldepthmask) then
+   ! Depth mask as a layer count: either copy from an integer or read
+   ! a real value.
+   if (isncvarint(bathyncname, ncid)) then
+      write (*,*) 'Bathymetry variable is integer depth mask'
+      allocate(idepthmask(bathysize))
+      call get_ncdata_i(bathyncname, ncid, 1, 1, grid, dim, &
+                        grid%nlong, grid%nlat, 1, 1, idepthmask)
+      rdepthmask = idepthmask
+      deallocate(idepthmask)
+   else
+      write (*,*) 'Bathymetry variable is real depth mask'
+      call get_ncdata_r(bathyncname, ncid, 1, 1, grid, dim, &
+                        grid%nlong, grid%nlat, 1, 1, rdepthmask)
+   end if
+else
+   ! Floating point water depth: calculate the depth mask based on the
+   ! ocean model levels.
+   write (*,*) 'Bathymetry variable is real water depth'
+   allocate(waterdepth(bathysize))
+   call get_ncdata_r(bathyncname, ncid, 1, 1, grid, dim, &
+                     grid%nlong, grid%nlat, 1, 1, waterdepth)
+   where (waterdepth < 0) waterdepth = 0
+   rdepthmask = nlev
+   do i = 1, bathysize
+      if (waterdepth(i) == 0) then
+         rdepthmask(i) = 0
+      else
+         do ilev = 1, nlev
+            if (waterdepth(i) < levels(ilev)) then
+               rdepthmask(i) = ilev
+               exit
+            end if
+         end do
+      end if
+   end do
+   deallocate(waterdepth)
+endif
 
 ! Write the new depth mask data.
+where (rdepthmask < 0) rdepthmask = 0
+where (rdepthmask > nlev) rdepthmask = nlev
+call skip(ochan, curpos, onewpos)
+call wrtblkr(rdepthmask, bathysize, bathysize, ochan, curpos)
+deallocate(rdepthmask)
+
+! Close NetCDF file.
+call close_ncfile(ncid, ierr)
 
 return
 end
