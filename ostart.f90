@@ -60,6 +60,8 @@ real(rtype), dimension(:), allocatable :: rtmp
 logical lgotoceanlevels
 integer noceanlevels
 real(rtype), dimension(:), allocatable :: oceanlevels
+real(rtype) rmdi_nc
+integer imdi_nc
 
 
 write (*,*) 'Writing Ocean start dump ', trim(fileout)
@@ -546,11 +548,15 @@ do i=1,fixhd(152)
          call get_ncfield_r(ncid(ncfileid(iitem)),varname,ilev,model, &
                             itimeusage1,itimeusage2,istartdate, &
                             rdata,data_size_i(i))
+         call get_ncmdi_r(varname,ncid(ncfileid(iitem)),rmdi_nc)
+         where (rdata == rmdi_nc) rdata = rmdi
       else
          idata = 0
          call get_ncfield_i(ncid(ncfileid(iitem)),varname,ilev,model, &
                             itimeusage1,itimeusage2,istartdate, &
                             idata,data_size_i(i))
+         call get_ncmdi_i(varname,ncid(ncfileid(iitem)),imdi_nc)
+         where (idata == imdi_nc) idata = imdi
       endif
 
       if (i == fixhd(152)) then
