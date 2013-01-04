@@ -30,9 +30,8 @@ integer i,ierr,model
 integer, dimension(:), allocatable :: ncid
 character(3) intype,outtype
 integer(ptype) ichan,ochan
-integer(itype) fixhd(len_fixhd),istashcode,eof,n1
+integer(itype) fixhdi(len_fixhd),fixhdo(len_fixhd),istashcode,eof,n1
 integer(otype) onewpos,curpos,inewpos
-integer fixhd_160_i             ! Data start position.
 integer header_size,nrec
 character(max_stdname_size) stdname
 character(max_varname_size) varname
@@ -152,21 +151,20 @@ call openff(ochan,fileout,'w',outtype)
 
 ! Read/write fixed length header
 
-call rdblki(fixhd,len_fixhd,len_fixhd,ichan,inewpos,eof)
-
-fixhd_160_i = fixhd(160)
+call rdblki(fixhdi,len_fixhd,len_fixhd,ichan,inewpos,eof)
+fixhdo = fixhdi
 
 if (luseconfig) then
-   fixhd(8) = ical
-   fixhd(12) = iversion
+   fixhdo(8) = ical
+   fixhdo(12) = iversion
    if (lwfio .and. iwfio_size > 1) then
-      header_size = fixhd(150) - 1 + fixhd(151)*fixhd(152)
+      header_size = fixhdi(150) - 1 + fixhdi(151)*fixhdi(152)
       nrec = header_size / iwfio_size
       if (mod(header_size,iwfio_size) /= 0) nrec = nrec + 1
       header_size = nrec*iwfio_size
-      fixhd(160) = header_size+1
+      fixhdo(160) = header_size+1
    else
-      fixhd(160) = fixhd(150) + fixhd(151)*fixhd(152)
+      fixhdo(160) = fixhdi(150) + fixhdi(151)*fixhdi(152)
    endif
 endif
 
@@ -174,7 +172,7 @@ endif
 ! Check that file uses uncompressed data if we're going to try to
 ! extract additional data from NetCDF files.
 
-if ((fixhd(141) > 1 .or. fixhd(143) > 1 .or. fixhd(145) > 1) &
+if ((fixhdi(141) > 1 .or. fixhdi(143) > 1 .or. fixhdi(145) > 1) &
      .and. nitem > 0) then
    write (*,*) 'ERROR: Can''t convert NetCDF data to compressed UM format'
    stop
@@ -194,7 +192,7 @@ if (itimeusage1 == 0) then
 
    if (lusestdname) then
 
-      inewpos = fixhd(150) + (itemid(1)-1)*64 + 41
+      inewpos = fixhdi(150) + (itemid(1)-1)*64 + 41
       call skip(ichan,curpos,inewpos)
       n1 = 1
       call rdblki(istashcode,n1,n1,ichan,inewpos,eof)
@@ -227,45 +225,43 @@ endif
 ! Set date and time fixed length header values
 
 if (itimeusage1 == 1 .or. itimeusage1 == 0) then
-   fixhd(21:26) = istartdate(1:6)
-   fixhd(27) = get_daynum(fixhd(21),fixhd(22),fixhd(23),fixhd(8))
-   fixhd(28:33) = istartdate(1:6)
-   fixhd(34) = get_daynum(fixhd(28),fixhd(29),fixhd(30),fixhd(8))
+   fixhdo(21:26) = istartdate(1:6)
+   fixhdo(27) = get_daynum(fixhdo(21),fixhdo(22),fixhdo(23),fixhdo(8))
+   fixhdo(28:33) = istartdate(1:6)
+   fixhdo(34) = get_daynum(fixhdo(28),fixhdo(29),fixhdo(30),fixhdo(8))
 endif
 
 ! Get current date and time for fixed length header
 
 call date_and_time(values=date_time)
-fixhd(35:37) = date_time(1:3)
-fixhd(38:40) = date_time(5:7)
-fixhd(41) = get_daynum(fixhd(35),fixhd(36),fixhd(37),1)
-write(*,*) 'fixhd(41)=', fixhd(41)
+fixhdo(35:37) = date_time(1:3)
+fixhdo(38:40) = date_time(5:7)
+fixhdo(41) = get_daynum(fixhdo(35),fixhdo(36),fixhdo(37),1)
 
-!==> MAY NEED TO REWRITE THIS LATER IF THE SIZE OF THE ISLAND DATA
-!    CHANGES (OR JUST MOVE WRITING THE HEADER UNTIL AFTER WE KNOW
-!    EXACTLY HOW BIG IT SHOULD BE)
-call wrtblki(fixhd,len_fixhd,len_fixhd,ochan,onewpos)
+! This may need to be rewritten later if the size of the island data
+! changes.
+call wrtblki(fixhdo,len_fixhd,len_fixhd,ochan,onewpos)
 
 modidx(1) = -1
 
 ! Find largest integer and real header dimension
 
-ihead_dim = fixhd(101)
-if (fixhd(141) > ihead_dim) ihead_dim = fixhd(141)
-if (fixhd(143) > ihead_dim) ihead_dim = fixhd(143)
-if (fixhd(145) > ihead_dim) ihead_dim = fixhd(145)
+ihead_dim = fixhdi(101)
+if (fixhdi(141) > ihead_dim) ihead_dim = fixhdi(141)
+if (fixhdi(143) > ihead_dim) ihead_dim = fixhdi(143)
+if (fixhdi(145) > ihead_dim) ihead_dim = fixhdi(145)
 
-rhead_dim = fixhd(106)
-if (fixhd(111) /= IMDI .and. fixhd(111)*fixhd(112) > rhead_dim) &
-   rhead_dim = fixhd(111)*fixhd(112)
-if (fixhd(116) /= IMDI .and. fixhd(116)*fixhd(117) > rhead_dim) &
-   rhead_dim = fixhd(116)*fixhd(117)
-if (fixhd(121) /= IMDI .and. fixhd(121)*fixhd(122) > rhead_dim) &
-   rhead_dim = fixhd(121)*fixhd(122)
-if (fixhd(126) /= IMDI .and. fixhd(126)*fixhd(127) > rhead_dim) &
-   rhead_dim = fixhd(126)*fixhd(126)
-if (fixhd(131) > rhead_dim) rhead_dim = fixhd(131)
-if (fixhd(136) > rhead_dim) rhead_dim = fixhd(136)
+rhead_dim = fixhdi(106)
+if (fixhdi(111) /= IMDI .and. fixhdi(111)*fixhdi(112) > rhead_dim) &
+   rhead_dim = fixhdi(111)*fixhdi(112)
+if (fixhdi(116) /= IMDI .and. fixhdi(116)*fixhdi(117) > rhead_dim) &
+   rhead_dim = fixhdi(116)*fixhdi(117)
+if (fixhdi(121) /= IMDI .and. fixhdi(121)*fixhdi(122) > rhead_dim) &
+   rhead_dim = fixhdi(121)*fixhdi(122)
+if (fixhdi(126) /= IMDI .and. fixhdi(126)*fixhdi(127) > rhead_dim) &
+   rhead_dim = fixhdi(126)*fixhdi(126)
+if (fixhdi(131) > rhead_dim) rhead_dim = fixhdi(131)
+if (fixhdi(136) > rhead_dim) rhead_dim = fixhdi(136)
 
 write(*,*)'ihead_dim = ',ihead_dim
 write(*,*)'rhead_dim = ',rhead_dim
@@ -275,28 +271,28 @@ allocate (rhead(rhead_dim))
 
 ! Read/write headers
 
-if (fixhd(101) > 0) then
-   inewpos = fixhd(100)
-   onewpos = fixhd(100)
+if (fixhdi(101) > 0) then
+   inewpos = fixhdi(100)
+   onewpos = fixhdo(100)
    call readwrite_head_i(ichan,ochan,inewpos,onewpos, &
-                         ihead,fixhd(101),imodarr,modidx,ierr)
+                         ihead,fixhdi(101),imodarr,modidx,ierr)
 endif
 
-if (fixhd(106) > 0) then
-   inewpos = fixhd(105)
-   onewpos = fixhd(105)
+if (fixhdi(106) > 0) then
+   inewpos = fixhdi(105)
+   onewpos = fixhdo(105)
    call readwrite_head_r(ichan,ochan,inewpos,onewpos, &
-                         rhead,fixhd(106),rmodarr,modidx,ierr)
+                         rhead,fixhdi(106),rmodarr,modidx,ierr)
 endif
 
 lgotoceanlevels = .FALSE.
-if (fixhd(111) > 0) then
-   inewpos = fixhd(110)
-   onewpos = fixhd(110)
+if (fixhdi(111) > 0) then
+   inewpos = fixhdi(110)
+   onewpos = fixhdo(110)
    lgotoceanlevels = .TRUE.
    call readwrite_head_r(ichan,ochan,inewpos,onewpos, &
-                         rhead,fixhd(111)*fixhd(112),rmodarr,modidx,ierr)
-   noceanlevels = fixhd(111) * fixhd(112)
+                         rhead,fixhdi(111)*fixhdi(112),rmodarr,modidx,ierr)
+   noceanlevels = fixhdi(111) * fixhdi(112)
    allocate(oceanlevels(noceanlevels))
    oceanlevels(1) = rhead(1)
    do i = 2, noceanlevels
@@ -304,27 +300,27 @@ if (fixhd(111) > 0) then
    end do
 endif
 
-if (fixhd(116) > 0) then
-   inewpos = fixhd(115)
-   onewpos = fixhd(115)
+if (fixhdi(116) > 0) then
+   inewpos = fixhdi(115)
+   onewpos = fixhdo(115)
    call readwrite_head_r(ichan,ochan,inewpos,onewpos, &
-                         rhead,fixhd(116)*fixhd(117),rmodarr,modidx,ierr)
+                         rhead,fixhdi(116)*fixhdi(117),rmodarr,modidx,ierr)
 endif
 
-if (fixhd(121) > 0) then
-   inewpos = fixhd(120)
-   onewpos = fixhd(120)
+if (fixhdi(121) > 0) then
+   inewpos = fixhdi(120)
+   onewpos = fixhdo(120)
    call readwrite_head_r(ichan,ochan,inewpos,onewpos, &
-                         rhead,fixhd(121)*fixhd(122),rmodarr,modidx,ierr)
+                         rhead,fixhdi(121)*fixhdi(122),rmodarr,modidx,ierr)
 endif
 
-if (fixhd(126) > 0) then
-   inewpos = fixhd(125)
-   onewpos = fixhd(125)
+if (fixhdi(126) > 0) then
+   inewpos = fixhdi(125)
+   onewpos = fixhdo(125)
    if (lbathy) then
       if (lgotoceanlevels) then
-         call modify_bathymetry(ichan,ochan,inewpos,onewpos, &
-              fixhd(126)*fixhd(127),bathyfile,bathyncname,lbathydepthmask, &
+         call modify_bathymetry(ochan,onewpos, &
+              fixhdi(126)*fixhdi(127),bathyfile,bathyncname,lbathydepthmask, &
               noceanlevels, oceanlevels)
       else
          write (*,*) 'No ocean model levels for bathymetry modification'
@@ -332,65 +328,71 @@ if (fixhd(126) > 0) then
       end if
    else
       call readwrite_head_r(ichan,ochan,inewpos,onewpos, &
-           rhead,fixhd(126)*fixhd(127),rmodarr,modidx,ierr)
+           rhead,fixhdi(126)*fixhdi(127),rmodarr,modidx,ierr)
    endif
 endif
 
 !==> OVERWRITE ISLAND DATA HERE IF REQUIRED, MODIFYING POSITIONS FOR
 !    FOLLOWING DATA
-if (fixhd(131) > 0) then
-   inewpos = fixhd(130)
-   onewpos = fixhd(130)
+if (lireplace .or. liadd) then
+   call process_islands(ichan, ochan, fixhdi, fixhdo, &
+                        lireplace, liadd, islandsfile)
+else
+   ! Default copying of island data.
+   if (fixhdi(131) > 0) then
+      inewpos = fixhdi(130)
+      onewpos = fixhdo(130)
+      call readwrite_head_r(ichan,ochan,inewpos,onewpos, &
+                            rhead,fixhdi(131),rmodarr,modidx,ierr)
+   endif
+end if
+
+if (fixhdi(136) > 0) then
+   inewpos = fixhdi(135)
+   onewpos = fixhdo(135)
    call readwrite_head_r(ichan,ochan,inewpos,onewpos, &
-                         rhead,fixhd(131),rmodarr,modidx,ierr)
+                         rhead,fixhdi(136),rmodarr,modidx,ierr)
 endif
 
-if (fixhd(136) > 0) then
-   inewpos = fixhd(135)
-   onewpos = fixhd(135)
-   call readwrite_head_r(ichan,ochan,inewpos,onewpos, &
-                         rhead,fixhd(136),rmodarr,modidx,ierr)
-endif
-
-if (fixhd(141) > 0) then
-   inewpos = fixhd(140)
-   onewpos = fixhd(140)
+if (fixhdi(141) > 0) then
+   inewpos = fixhdi(140)
+   onewpos = fixhdo(140)
    call readwrite_head_i(ichan,ochan,inewpos,onewpos, &
-                         ihead,fixhd(141),imodarr,modidx,ierr)
+                         ihead,fixhdi(141),imodarr,modidx,ierr)
 endif
 
-if (fixhd(143) > 0) then
-   inewpos = fixhd(142)
-   onewpos = fixhd(142)
+if (fixhdi(143) > 0) then
+   inewpos = fixhdi(142)
+   onewpos = fixhdo(142)
    call readwrite_head_i(ichan,ochan,inewpos,onewpos, &
-                         ihead,fixhd(143),imodarr,modidx,ierr)
+                         ihead,fixhdi(143),imodarr,modidx,ierr)
 endif
 
-if (fixhd(145) > 0) then
-   inewpos = fixhd(144)
-   onewpos = fixhd(144)
+if (fixhdi(145) > 0) then
+   inewpos = fixhdi(144)
+   onewpos = fixhdo(144)
    call readwrite_head_i(ichan,ochan,inewpos,onewpos, &
-                         ihead,fixhd(145),imodarr,modidx,ierr)
+                         ihead,fixhdi(145),imodarr,modidx,ierr)
 endif
 
 deallocate (ihead,rhead)
 
-allocate(data_type(fixhd(152)))
-allocate(data_pack(fixhd(152)))
-allocate(stash_code(fixhd(152)))
-allocate(data_size_i(fixhd(152)))
-allocate(data_size_o(fixhd(152)))
-allocate(data_pos_i(fixhd(152)))
-allocate(data_pos_o(fixhd(152)))
+allocate(data_type(fixhdi(152)))
+allocate(data_pack(fixhdi(152)))
+allocate(stash_code(fixhdi(152)))
+allocate(data_size_i(fixhdi(152)))
+allocate(data_size_o(fixhdi(152)))
+allocate(data_pos_i(fixhdi(152)))
+allocate(data_pos_o(fixhdi(152)))
 
-inewpos = fixhd(150)
-onewpos = fixhd(150)
-data_pos0 = fixhd(160) - 1
-data_pos1 = fixhd_160_i - 1
+inewpos = fixhdi(150)
+onewpos = fixhdo(150)
+data_pos0 = fixhdo(160) - 1
+data_pos1 = fixhdi(160) - 1
 
 call skip(ichan,curpos,inewpos)
 call skip(ochan,curpos,onewpos)
-do i=1,fixhd(152)
+do i=1,fixhdi(152)
 
 !  Read in PP header
 
@@ -483,9 +485,9 @@ enddo
 
 if (luseconfig .and. lwfio .and. iwfio_size > 1) then
    write(*,*)'writing dummy data after headers of size ', &
-             fixhd(160)-fixhd(150)-fixhd(151)*fixhd(152)
+             fixhdo(160)-fixhdo(150)-fixhdo(151)*fixhdo(152)
    n1 = iwfio_size
-   n2 = fixhd(160)-fixhd(150)-fixhd(151)*fixhd(152)
+   n2 = fixhdo(160)-fixhdo(150)-fixhdo(151)*fixhdo(152)
    call wrtblki(dum,n1,n2,ochan,onewpos)
    deallocate(dum)
 endif
@@ -495,8 +497,8 @@ write(*,*)'max_rsize = ',max_rsize
 if (max_isize > 0) allocate(idata(max_isize))
 if (max_rsize > 0) allocate(rdata(max_rsize))
 
-inewpos = fixhd_160_i
-onewpos = fixhd(160)
+inewpos = fixhdi(160)
+onewpos = fixhdo(160)
 iitem = 1
 ilev = 1
 lreplace = .false.
@@ -504,7 +506,7 @@ lreplace = .false.
 call skip(ichan,curpos,inewpos)
 call skip(ochan,curpos,onewpos)
 
-do i=1,fixhd(152)
+do i=1,fixhdi(152)
 
    lreplace = lreplace .or. (iitem <= nitem .and. i == itemid(iitem))
 
@@ -559,7 +561,7 @@ do i=1,fixhd(152)
          where (idata == imdi_nc) idata = imdi
       endif
 
-      if (i == fixhd(152)) then
+      if (i == fixhdi(152)) then
          lreplace = .false.
       else if (stash_code(i) /= stash_code(i+1)) then
          ilev = 1
@@ -576,7 +578,7 @@ do i=1,fixhd(152)
       if (data_pos_i(i) /= 0 .and. data_pos_i(i) /= IMDI) &
          inewpos = data_pos_i(i)+1
 
-      if (i==1 .or. i==fixhd(152)) &
+      if (i==1 .or. i==fixhdi(152)) &
          write(*,*)i,data_size_i(i),data_pos_i(i),inewpos
 
       if (data_pack(i) == 2) then
@@ -602,7 +604,7 @@ do i=1,fixhd(152)
 
    if (data_pos_o(i) /= 0 .and. data_pos_o(i) /= IMDI) onewpos = data_pos_o(i)+1
 
-   if (i==1 .or. i==fixhd(152)) &
+   if (i==1 .or. i==fixhdi(152)) &
         write(*,*)i,data_size_o(i),data_pos_o(i),onewpos
 
    if (data_pack(i) == 2) then
@@ -652,7 +654,7 @@ end
 !  depth mask based on comparison with the model layer thicknesses).
 !
 
-subroutine modify_bathymetry(ichan, ochan, inewpos, onewpos, &
+subroutine modify_bathymetry(ochan, onewpos, &
                              bathysize, bathyfile, bathyncname, &
                              ldepthmask, nlev, levels)
 
@@ -662,8 +664,8 @@ use types
 
 implicit none
 
-integer(ptype) ichan, ochan
-integer(otype) onewpos, inewpos
+integer(ptype) ochan
+integer(otype) onewpos
 integer(itype) bathysize
 character(*) bathyfile, bathyncname
 logical ldepthmask
@@ -747,6 +749,169 @@ deallocate(rdepthmask)
 
 ! Close NetCDF file.
 call close_ncfile(ncid, ierr)
+
+return
+end
+
+
+
+!===============================================================================
+!
+!  Modify island data in "extra constants" section of header based on
+!  input from a ASCII islands file.  Also update output file header
+!  offsets as required for header items and data fields following
+!  island data.
+!
+subroutine process_islands(ichan, ochan, fixhdi, fixhdo, &
+                           lireplace, liadd, islandsfile)
+
+use getkind
+use parameters
+use constants
+use config
+use types
+
+implicit none
+
+integer(ptype) ichan, ochan
+integer(itype) fixhdi(len_fixhd), fixhdo(len_fixhd)
+logical lireplace, liadd
+character(*) islandsfile
+
+integer(otype) inewpos, onewpos, curpos
+integer ieof
+integer old_len, new_len, out_len, dlen
+integer, parameter :: max_islands_len = 8192
+real(rtype) old_islands(max_islands_len)
+real(rtype) new_islands(max_islands_len)
+real(rtype) out_islands(max_islands_len)
+
+if (lireplace) then
+   write (*,*) 'Replacing island data from file: ', trim(islandsfile)
+else if (liadd) then
+   write (*,*) 'Adding island data from file: ', trim(islandsfile)
+else
+   write (*,*) 'ERROR: unexpected state in process_islands'
+   stop
+end if
+
+! Extract existing island data from header.
+old_len = fixhdi(131)
+if (old_len > max_islands_len) then
+   write (*,*) 'ERROR: increase max_islands_len and recompile'
+   stop
+end if
+inewpos = fixhdi(130)
+call skip(ichan, curpos, inewpos)
+call rdblkr(old_islands, old_len, old_len, ichan, curpos, ieof)
+
+! Read new island data.
+call read_islands_file(islandsfile, new_len, max_islands_len, new_islands)
+
+! Set up output island data as required.
+if (lireplace) then
+   out_len = new_len
+   out_islands = new_islands
+else if (liadd) then
+   ! The (-1) is because both sets of data have an island count.
+   out_len = old_len + new_len - 1
+   if (out_len > max_islands_len) then
+      write (*,*) 'ERROR: increase max_islands_len and recompile'
+      stop
+   end if
+   out_islands(1) = old_islands(1) + new_islands(1)
+   out_islands(2:old_len) = old_islands(2:old_len)
+   out_islands(old_len+1:out_len) = new_islands(2:new_len)
+end if
+
+! Adjust output header file offsets.
+dlen = out_len - old_len
+fixhdo(131) = out_len
+if (fixhdo(135) /= IMDI) fixhdo(135) = fixhdo(135) + dlen
+if (fixhdo(140) /= IMDI) fixhdo(140) = fixhdo(140) + dlen
+if (fixhdo(142) /= IMDI) fixhdo(142) = fixhdo(142) + dlen
+if (fixhdo(144) /= IMDI) fixhdo(144) = fixhdo(144) + dlen
+if (fixhdo(150) /= IMDI) fixhdo(150) = fixhdo(150) + dlen
+if (fixhdo(160) /= IMDI) fixhdo(160) = fixhdo(160) + dlen
+
+! Rewrite output fixed header.
+onewpos = 1
+call skip(ochan, curpos, onewpos)
+call wrtblki(fixhdo, len_fixhd, len_fixhd, ochan, onewpos)
+
+! Write new output island data.
+onewpos = fixhdo(130)
+call skip(ochan, curpos, onewpos)
+call wrtblkr(out_islands, out_len, out_len, ochan, onewpos)
+
+return
+end
+
+
+!================================================================================
+!
+!  Read islands file, skipping comment lines (introduced by #
+!  character) and returning numeric values in file in a single array.
+!
+
+subroutine read_islands_file(fname, nvals, maxlen, res)
+
+use getkind
+
+implicit none
+
+character(*) fname
+integer nvals, maxlen
+real(rtype) res(maxlen)
+
+integer sz, pos, len, i
+character(len=1024) tmp, line
+integer, parameter :: buff_size = 32768
+character(len=buff_size) :: buff
+logical in
+
+open (unit=10, file=fname, form='formatted', status='old')
+inquire (unit=10, size=sz)
+if (sz > buff_size) then
+   write (*,*) 'Islands file too large: recompile with larger buff_size'
+   stop
+end if
+buff = ' '
+
+pos = 1
+do while (.true.)
+   read (10, '(a)', end=99) tmp
+   line = trim(tmp)
+   len = len_trim(line)
+   if (len == 0 .or. line(1:1) == '#') cycle
+   buff(pos:pos+len-1) = line(1:len)
+   pos = pos + len + 1
+end do
+
+99 continue
+pos = 1
+nvals = 0
+if (buff(1:1) /= ' ') then
+   in = .true.
+   nvals = 1
+   do while (pos <= sz)
+      if (.not. in) then
+         if (buff(pos:pos) /= ' ') then
+            in = .true.
+            nvals = nvals + 1
+         end if
+      else if (in .and. buff(pos:pos) == ' ') then
+         in = .false.
+      end if
+      pos = pos + 1
+   end do
+end if
+
+if (nvals > maxlen) then
+   write (*,*) 'ERROR: increase max_islands_len and recompile'
+   stop
+end if
+read (buff,*) res(1:nvals)
 
 return
 end
