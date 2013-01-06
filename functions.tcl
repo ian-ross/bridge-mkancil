@@ -1123,14 +1123,8 @@ proc create_namelist {{namelist_arg {}}} {
             }
          } elseif {$type == "astart"} {
             puts $fid "  LASTART = .TRUE.,"
-            puts $fid "  IASTART_NNCFILES = $astart(nncfile),"
-            set i 0
-            while {$i < $astart(nncfile)} {
-               set filein [lindex $astart(ncfile) $i]
-               incr i
-               puts  $fid "  ASTART_FILEIN($i) = \"$filein\","
-            }
-            puts $fid "  ASTART_FILEOUT = \"$astart(file_out)\","
+            puts $fid "  ASTART_UMFILEIN = \"$astart(umfile_in)\","
+            puts $fid "  ASTART_UMFILEOUT = \"$astart(file_out)\","
             puts $fid "  IASTART_TIMEUSAGE1 = $astart(timeusage1),"
             puts $fid "  IASTART_TIMEUSAGE2 = $astart(timeusage2),"
             puts $fid "  IASTART_STARTDATE(1) = $astart(year),"
@@ -1139,35 +1133,95 @@ proc create_namelist {{namelist_arg {}}} {
             puts $fid "  IASTART_STARTDATE(4) = $astart(hour),"
             puts $fid "  IASTART_STARTDATE(5) = $astart(min),"
             puts $fid "  IASTART_STARTDATE(6) = $astart(sec),"
-            if {$astart(useexist)} {
-               puts $fid "  LASTART1 = .TRUE.,"
-               puts $fid "  ASTART1_UMFILE = \"$astart(umfile_in)\","
-               if {$astart(usestdname)} {
-                  puts $fid "  LASTART1_USESTDNAME = .TRUE.,"
-               } else {
-                  puts $fid "  LASTART1_USESTDNAME = .FALSE.,"
-               }
-               if {$astart(useconfig)} {
-                  puts $fid "  LASTART1_USECONFIG = .TRUE.,"
-               } else {
-                  puts $fid "  LASTART1_USECONFIG = .FALSE.,"
-               }
-               puts $fid "  IASTART1_NITEM = $astart(nitem),"
-               set i 0
-               while {$i < $astart(nitem)} {
-                  set ncfieldid [lindex $astart(ncfileid) $i]
-                  set ncname [lindex $astart(ncname) $i]
-                  incr i
-                  puts  $fid "  IASTART1_NCFILEID($i) = $ncfieldid,"
-                  puts  $fid "  IASTART1_NCNAME($i) = \"$ncname\","
-              }
+            if {$astart(usestdname)} {
+                puts $fid "  LASTART_USESTDNAME = .TRUE.,"
             } else {
-               puts $fid "  LASTART1 = .FALSE.,"
+                puts $fid "  LASTART_USESTDNAME = .FALSE.,"
             }
-            if {$astart(addextra)} {
-               puts $fid "  LASTART2 = .TRUE.,"
+            if {$astart(useconfig)} {
+                puts $fid "  LASTART_USECONFIG = .TRUE.,"
             } else {
-               puts $fid "  LASTART2 = .FALSE.,"
+                puts $fid "  LASTART_USECONFIG = .FALSE.,"
+            }
+             set ncfs {}
+             foreach m $astart(mods) {
+                 if {[lsearch $ncfs [lindex $m 3]] == -1} { lappend ncfs [lindex $m 3] }
+             }
+             puts $fid "  IASTART_NNCFILES = [llength $ncfs],"
+             set i 1
+             foreach f $ncfs {
+                 puts  $fid "  ASTART_NCFILES($i) = \"$f\","
+                 incr i
+             }
+             puts $fid "  IASTART_NITEM = [llength $astart(mods)],"
+             set i 1
+             foreach m $astart(mods) {
+                 set ncfileid [expr [lsearch $ncfs [lindex $m 3]] + 1]
+                 puts  $fid "  IASTART_NCFILEID($i) = $ncfileid,"
+                 puts  $fid "  ASTART_NCNAME($i) = \"[lindex $m 2]\","
+                 puts  $fid "  IASTART_STASHCODE($i) = [lindex $m 0],"
+                 incr i
+             }
+         } elseif {$type == "ostart"} {
+            puts $fid "  LOSTART = .TRUE.,"
+            puts $fid "  OSTART_UMFILEIN = \"$ostart(umfile_in)\","
+            puts $fid "  OSTART_UMFILEOUT = \"$ostart(file_out)\","
+            puts $fid "  IOSTART_TIMEUSAGE1 = $ostart(timeusage1),"
+            puts $fid "  IOSTART_TIMEUSAGE2 = $ostart(timeusage2),"
+            puts $fid "  IOSTART_STARTDATE(1) = $ostart(year),"
+            puts $fid "  IOSTART_STARTDATE(2) = $ostart(mon),"
+            puts $fid "  IOSTART_STARTDATE(3) = $ostart(day),"
+            puts $fid "  IOSTART_STARTDATE(4) = $ostart(hour),"
+            puts $fid "  IOSTART_STARTDATE(5) = $ostart(min),"
+            puts $fid "  IOSTART_STARTDATE(6) = $ostart(sec),"
+            if {$ostart(usestdname)} {
+                puts $fid "  LOSTART_USESTDNAME = .TRUE.,"
+            } else {
+                puts $fid "  LOSTART_USESTDNAME = .FALSE.,"
+            }
+            if {$ostart(useconfig)} {
+                puts $fid "  LOSTART_USECONFIG = .TRUE.,"
+            } else {
+                puts $fid "  LOSTART_USECONFIG = .FALSE.,"
+            }
+             set ncfs {}
+             foreach m $ostart(mods) {
+                 if {[lsearch $ncfs [lindex $m 3]] == -1} { lappend ncfs [lindex $m 3] }
+             }
+             puts $fid "  IOSTART_NNCFILES = [llength $ncfs],"
+             set i 1
+             foreach f $ncfs {
+                 puts  $fid "  OSTART_NCFILES($i) = \"$f\","
+                 incr i
+             }
+             puts $fid "  IOSTART_NITEM = [llength $ostart(mods)],"
+             set i 1
+             foreach m $ostart(mods) {
+                 set ncfileid [expr [lsearch $ncfs [lindex $m 3]] + 1]
+                 puts  $fid "  IOSTART_NCFILEID($i) = $ncfileid,"
+                 puts  $fid "  OSTART_NCNAME($i) = \"[lindex $m 2]\","
+                 puts  $fid "  IOSTART_STASHCODE($i) = [lindex $m 0],"
+                 incr i
+             }
+            if {$ostart(bathy)} {
+                puts $fid "  LOSTART_BATHY = .TRUE.,"
+                puts $fid "  OSTART_BATHYFILE = \"$ostart(bathyfile)\","
+                puts $fid "  OSTART_BATHYNCNAME = \"$ostart(bathyncname)\","
+                if {$ostart(bathydepthmask)} {
+                    puts $fid "  LOSTART_BATHY_DEPTHMASK = .TRUE.,"
+                } else {
+                    puts $fid "  LOSTART_BATHY_DEPTHMASK = .FALSE.,"
+                }
+            }
+            if {$ostart(islandmod)} {
+                if {$ostart(islandtype) == 1} {
+                    puts $fid "  LOSTART_ISLANDS_REPLACE = .TRUE.,"
+                    puts $fid "  LOSTART_ISLANDS_ADD = .FALSE.,"
+                } else {
+                    puts $fid "  LOSTART_ISLANDS_REPLACE = .FALSE.,"
+                    puts $fid "  LOSTART_ISLANDS_ADD = .TRUE.,"
+                }
+                puts $fid "  OSTART_ISLANDS_FILEIN = \"$ostart(islandfile)\","
             }
          }
       } elseif {$type == "mask" && $mask(use)} {
@@ -2054,10 +2108,7 @@ proc setupdefaults {} {
    set genanc(1,create) 0
 
    set astart(create) 0
-   set astart(useexist) 1
-   set astart(addextra) 0
-   set astart(nncfile) 0
-   set astart(ncfile) ""
+   set astart(umfile_in) ""
    set astart(file_out) [pwd]/newdump.astart
    set astart(timeusage1) 0
    set astart(timeusage2) 0
@@ -2067,13 +2118,33 @@ proc setupdefaults {} {
    set astart(hour) 0
    set astart(min) 0
    set astart(sec) 0
-   set astart(umfile_in) [pwd]/dump.astart
-   set astart(usestdname) 1
+   set astart(usestdname) 0
    set astart(useconfig) 0
-   set astart(nitem) 0
-   set astart(ncfileid) ""
-   set astart(ncname) ""
-   set astart(useconfig) 0
+   set astart(ncfile) ""
+   set astart(mods) {}
+
+   set ostart(create) 0
+   set ostart(umfile_in) ""
+   set ostart(file_out) [pwd]/newdump.ostart
+   set ostart(timeusage1) 0
+   set ostart(timeusage2) 0
+   set ostart(year) 0000
+   set ostart(mon) 1
+   set ostart(day) 16
+   set ostart(hour) 0
+   set ostart(min) 0
+   set ostart(sec) 0
+   set ostart(usestdname) 0
+   set ostart(useconfig) 0
+   set ostart(ncfile) ""
+   set ostart(mods) {}
+   set ostart(bathy) 0
+   set ostart(bathyfile) ""
+   set ostart(bathyncname) ""
+   set ostart(bathydepthmask) 1
+   set ostart(islandmod) 0
+   set ostart(islandtype) 1
+   set ostart(islandfile) ""
 }
 
 # procs to create multiple use widgets
@@ -2318,12 +2389,9 @@ proc select_varname1 {win label namevar filevar \
    pack $win -side top -fill both -expand yes
 
    label $win.label -text $label
-   entry $win.entry -width $width -textvariable $namevar
+   label $win.entry -width $width -textvariable $namevar -relief sunken -anchor w
    button $win.select -padx 2 -pady 1 -text "Select" \
-          -command " \
-             $win.entry selection range 0 end ; \
-             select_ncvarname $$filevar [list $dim $namevar $stdnamevar $win.entry] ; \
-                   "
+          -command "select_ncvarname $$filevar [list $dim $namevar $stdnamevar]"
    bind ncvarselectwin <Destroy> ""
 
    pack $win.label -side left -fill none -expand no
@@ -3408,7 +3476,7 @@ proc update_fieldlist {var filenum {args {}}} {
    global config $var defanc00 ${var}_fieldname ${var}_xold ww2
    global scrollbarwidth select_field_list_boxheight
 
-   #puts "=== update_fieldlist var=$var filenum=$filenum args=$args"
+   puts "=== update_fieldlist var=$var filenum=$filenum args=$args"
 
    if {! [winfo exists $ww2]} {return}
    set win $ww2
@@ -3848,20 +3916,33 @@ proc select_ncvarname {ncfile {dim false} {var ""} {stdnamevar ""} {entry ""}} {
       bind $ww.box1.list <Button-1> "
          set newvar \[lindex \"$ncinfo(var_name)\" \[%W index @%x,%y\]\]
       "
-      bind $ww.box1.list <Double-1> "
-         set $var \[lindex \"$ncinfo(var_name)\" \[%W index @%x,%y\]\]
-         $entry selection range 0 end
-      "
-      bind $ww.box1.list <Destroy> "
-         if {\[info exists newvar\]} {
-            set $var \$newvar
-            unset -nocomplain newvar
-         } else {
-            set $var $name0
-         }
-         $entry selection range 0 end
-         #$entry selection clear
-      "
+      if {$entry != ""} {
+          bind $ww.box1.list <Double-1> "
+            set $var \[lindex \"$ncinfo(var_name)\" \[%W index @%x,%y\]\]
+            $entry selection range 0 end
+          "
+          bind $ww.box1.list <Destroy> "
+            if {\[info exists newvar\]} {
+               set $var \$newvar
+               unset -nocomplain newvar
+            } else {
+               set $var $name0
+            }
+            $entry selection range 0 end
+            #$entry selection clear
+         "
+      } else {
+          bind $ww.box1.list <Double-1> \
+              "set $var \[lindex \"$ncinfo(var_name)\" \[%W index @%x,%y\]\]"
+          bind $ww.box1.list <Destroy> "
+            if {\[info exists newvar\]} {
+               set $var \$newvar
+               unset -nocomplain newvar
+            } else {
+               set $var $name0
+            }
+         "
+      }
    }
 
    if {$stdnamevar != ""} {
@@ -4010,10 +4091,12 @@ proc select_fields {win label1 label2 label3 label4 var1 var2 var3} {
 
 proc umfilelist {win file {readfile 1}} {
    global w4 selectname
-   global nitem itemindex stashnamelist standardnamelist shortnamelist
+   global nitem itemindex stashlist stashnamelist stashlabellist standardnamelist shortnamelist
 
-   puts "umfilelist ..."
+#   puts "umfilelist ..."
+   set stashlist {}
 
+   if {$file == ""} {return}
    if {! [file exists $file]} {
       write_message "$file: No such file or directory"
       return
@@ -4039,15 +4122,15 @@ proc umfilelist {win file {readfile 1}} {
       set nprog $pphead(nprog)
       if {$nprog == -32768} {set nprog $nfield}
 
-      write_message "file = $file"
-      write_message "win = $win"
-      write_message "pphead(model) = $pphead(model)"
-      write_message "pphead(version) = $pphead(version)"
-      write_message "pphead(nfield) = $pphead(nfield)"
-      write_message "pphead(nprog) = $pphead(nprog)"
-      write_message "pphead(1) = $pphead(1)"
-      write_message "pphead(2) = $pphead(2)"
-      write_message "pphead($nfield) = $pphead($nfield)"
+#      write_message "file = $file"
+#      write_message "win = $win"
+#      write_message "pphead(model) = $pphead(model)"
+#      write_message "pphead(version) = $pphead(version)"
+#      write_message "pphead(nfield) = $pphead(nfield)"
+#      write_message "pphead(nprog) = $pphead(nprog)"
+#      write_message "pphead(1) = $pphead(1)"
+#      write_message "pphead(2) = $pphead(2)"
+#      write_message "pphead($nfield) = $pphead($nfield)"
    
       set stash1 -1
       set stash2 [lindex $pphead(1) 41]
@@ -4065,10 +4148,10 @@ proc umfilelist {win file {readfile 1}} {
       }
       set nitem [llength $itemindex]
    
-      write_message "nitem = $nitem"
-      write_message "stashlist = $stashlist [llength $stashlist]"
-      write_message "itemindex = $itemindex [llength $itemindex]"
-      write_message "ppcodelist = $ppcodelist [llength $ppcodelist]"
+#      write_message "nitem = $nitem"
+#      write_message "stashlist = $stashlist [llength $stashlist]"
+#      write_message "itemindex = $itemindex [llength $itemindex]"
+#      write_message "ppcodelist = $ppcodelist [llength $ppcodelist]"
 
       set shortnamelist [getshortname_fromppcode $ppcodelist]
       set field 0
@@ -4078,6 +4161,13 @@ proc umfilelist {win file {readfile 1}} {
       }
       set stashnamelist [getstashname $model $version $stashlist]
       set standardnamelist [getstandardname $model $version $stashlist]
+      set field 0
+      set stashlabellist ""
+      foreach stashname $stashnamelist {
+          lappend stashlabellist "[lindex $stashlist $field] [string trim $stashname]"
+          incr field
+      }
+#      write_message "stashlabellist = $stashlabellist [llength $stashlabellist]"
    }      
 }
 
@@ -4311,12 +4401,16 @@ proc getstashname {model version stashlist} {
       set section [expr $stashcode/1000]
       set item [expr $stashcode - $section*1000]
 
-      set row [::mk::select $view1 -count 1 -exact model $model \
-                            -exact section $section -exact item $item]
+      set row [::mk::select $view1 -count 1 model $model \
+                            section $section item $item]
+#      set row [::mk::select $view1 -count 1 -exact model $model \
+#                            -exact section $section -exact item $item]
 
       if {[llength $row] == 0} {
-         set row [::mk::select $view2 -count 1 -exact model $model \
-                               -exact section $section -exact item $item]
+         set row [::mk::select $view2 -count 1 model $model \
+                               section $section item $item]
+#         set row [::mk::select $view2 -count 1 -exact model $model \
+#                               -exact section $section -exact item $item]
 
          if {[llength $row] == 0} {
             lappend stashname "STASHCODE = $stashcode"
@@ -4351,12 +4445,16 @@ proc getppcode {model version stashlist} {
       set section [expr $stashcode/1000]
       set item [expr $stashcode - $section*1000]
 
-      set row [::mk::select $view1 -count 1 -exact model $model \
-                            -exact section $section -exact item $item]
+      set row [::mk::select $view1 -count 1 model $model \
+                            section $section item $item]
+#      set row [::mk::select $view1 -count 1 -exact model $model \
+#                            -exact section $section -exact item $item]
 
       if {[llength $row] == 0} {
-         set row [::mk::select $view2 -count 1 -exact model $model \
-                               -exact section $section -exact item $item]
+         set row [::mk::select $view2 -count 1 model $model \
+                               section $section item $item]
+#         set row [::mk::select $view2 -count 1 -exact model $model \
+#                               -exact section $section -exact item $item]
 
          if {[llength $row] == 0} {
             lappend ppcode ""
@@ -4391,12 +4489,16 @@ proc getlevtype {model version stashlist} {
       set section [expr $stashcode/1000]
       set item [expr $stashcode - $section*1000]
 
-      set row [::mk::select $view1 -count 1 -exact model $model \
-                            -exact section $section -exact item $item]
+      set row [::mk::select $view1 -count 1 model $model \
+                            section $section item $item]
+#      set row [::mk::select $view1 -count 1 -exact model $model \
+#                            -exact section $section -exact item $item]
 
       if {[llength $row] == 0} {
-         set row [::mk::select $view2 -count 1 -exact model $model \
-                               -exact section $section -exact item $item]
+         set row [::mk::select $view2 -count 1 model $model \
+                               section $section item $item]
+#         set row [::mk::select $view2 -count 1 -exact model $model \
+#                               -exact section $section -exact item $item]
 
          if {[llength $row] == 0} {
             lappend levtype 0
@@ -4431,12 +4533,16 @@ proc getgridtype {model version stashlist} {
       set section [expr $stashcode/1000]
       set item [expr $stashcode - $section*1000] 
 
-      set row [::mk::select $view1 -count 1 -exact model $model \
-                            -exact section $section -exact item $item]
+      set row [::mk::select $view1 -count 1 model $model \
+                            section $section item $item]
+#      set row [::mk::select $view1 -count 1 -exact model $model \
+#                            -exact section $section -exact item $item]
 
       if {[llength $row] == 0} {
-         set row [::mk::select $view2 -count 1 -exact model $model \
-                               -exact section $section -exact item $item]
+         set row [::mk::select $view2 -count 1 model $model \
+                               section $section item $item]
+#         set row [::mk::select $view2 -count 1 -exact model $model \
+#                               -exact section $section -exact item $item]
 
          if {[llength $row] == 0} {
             lappend gridtype 1
@@ -4471,12 +4577,16 @@ proc getdatatype {model version stashlist} {
       set section [expr $stashcode/1000]
       set item [expr $stashcode - $section*1000]
 
-      set row [::mk::select $view1 -count 1 -exact model $model \
-                            -exact section $section -exact item $item]
+      set row [::mk::select $view1 -count 1 model $model \
+                            section $section item $item]
+#      set row [::mk::select $view1 -count 1 -exact model $model \
+#                            -exact section $section -exact item $item]
 
       if {[llength $row] == 0} {
-         set row [::mk::select $view2 -count 1 -exact model $model \
-                               -exact section $section -exact item $item]
+         set row [::mk::select $view2 -count 1 model $model \
+                               section $section item $item]
+#         set row [::mk::select $view2 -count 1 -exact model $model \
+#                               -exact section $section -exact item $item]
 
          if {[llength $row] == 0} {
             lappend datatype 1
@@ -4511,12 +4621,16 @@ proc getmasktype {model version stashlist} {
       set section [expr $stashcode/1000]
       set item [expr $stashcode - $section*1000]
 
-      set row [::mk::select $view1 -count 1 -exact model $model \
-                            -exact section $section -exact item $item]
+      set row [::mk::select $view1 -count 1 model $model \
+                            section $section item $item]
+#      set row [::mk::select $view1 -count 1 -exact model $model \
+#                            -exact section $section -exact item $item]
 
       if {[llength $row] == 0} {
-         set row [::mk::select $view2 -count 1 -exact model $model \
-                               -exact section $section -exact item $item]
+         set row [::mk::select $view2 -count 1 model $model \
+                               section $section item $item]
+#         set row [::mk::select $view2 -count 1 -exact model $model \
+#                               -exact section $section -exact item $item]
 
          if {[llength $row] == 0} {
             lappend masktype 0
@@ -4542,8 +4656,10 @@ proc getstandardname {model version stashlist} {
       set section [expr $stashcode/1000]
       set item [expr $stashcode - $section*1000]
 
-      set row [::mk::select $view -count 1 -exact model $model \
-                            -exact section $section -exact item $item]
+      set row [::mk::select $view -count 1 model $model \
+                            section $section item $item]
+#      set row [::mk::select $view -count 1 -exact model $model \
+#                            -exact section $section -exact item $item]
 
       if {[llength $row] == 0} {
          lappend standardname "no_standard_name"
@@ -4562,8 +4678,8 @@ proc getshortname_fromppcode {ppcode} {
    set view db.pp
    
    foreach code $ppcode {
-   
-      set row [::mk::select $view -count 1 -exact ppcode $code]
+#      set row [::mk::select $view -count 1 -exact ppcode $code]
+      set row [::mk::select $view -count 1 ppcode $code]
 
       if {[llength $row] == 0} {
          lappend shortname "field$code"
@@ -4597,7 +4713,8 @@ proc getppcode_fromshortname {shortname} {
             lappend ppcode ""
          }
       } else {
-         set row [::mk::select $view -count 1 -exact ppname $name]
+         set row [::mk::select $view -count 1 ppname $name]
+#         set row [::mk::select $view -count 1 -exact ppname $name]
 
          if {[llength $row] == 0} {
             lappend ppcode ""
@@ -4625,12 +4742,14 @@ proc getstashcode_fromppcode {model version ppcode} {
       set view2 db.stashmaster_701
    }
 
-   set row [::mk::select $view1 -count 1 -exact model $model \
-                                         -exact ppcode $ppcode]
+   set row [::mk::select $view1 -count 1 model $model ppcode $ppcode]
+#   set row [::mk::select $view1 -count 1 -exact model $model \
+#                                         -exact ppcode $ppcode]
 
    if {[llength $row] == 0} {
-      set row [::mk::select $view2 -count 1 -exact model $model \
-                                            -exact ppcode $ppcode]
+      set row [::mk::select $view2 -count 1 model $model ppcode $ppcode]
+#      set row [::mk::select $view2 -count 1 -exact model $model \
+#                                            -exact ppcode $ppcode]
 
       if {[llength $row] == 0} {
          set stashcode ""
@@ -4653,8 +4772,9 @@ proc getstashcode_fromstdname {model standardname} {
 
    set view db.standard_name
    
-   set row [::mk::select $view -count 1 -exact model $model \
-                         -exact standard_name $standardname]
+   set row [::mk::select $view -count 1 model $model standard_name $standardname]
+#   set row [::mk::select $view -count 1 -exact model $model \
+#                         -exact standard_name $standardname]
 
    if {[llength $row] == 0} {
       set stashcode ""
@@ -4748,9 +4868,13 @@ proc adduserstashmaster {filelist} {
          } elseif {$l0 == "5"} {
             set ppcode [string range $line 9 14]
             set row [::mk::select $view -count 1 \
-                                  -exact model [expr $model] \
-                                  -exact section [expr $section] \
-                                  -exact item [expr $item]]
+                                  model [expr $model] \
+                                  section [expr $section] \
+                                  item [expr $item]]
+#            set row [::mk::select $view -count 1 \
+#                                  -exact model [expr $model] \
+#                                  -exact section [expr $section] \
+#                                  -exact item [expr $item]]
             if {[llength $row] != 0} {
                ::mk::row delete $view!$row
             }

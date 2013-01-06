@@ -407,49 +407,48 @@ namelist /nam_genanc/ igenanc_model,igenanc_timeusage1,igenanc_timeusage2, &
 
 integer iastart_timeusage1,iastart_timeusage2,iastart_startdate(6)
 integer iastart_nncfiles
-integer iastart1_nitem,iastart1_ncfileid(max_nitem),iastart1_itemid(max_nitem)
+integer iastart_nitem,iastart_ncfileid(max_nitem),iastart_stashcode(max_nitem)
 logical lastart,lastart_newlsm
-logical lastart1,lastart1_usestdname,lastart1_useconfig
-logical lastart2
-character(max_filename_size) astart_filein(max_nncfiles)
-character(max_filename_size) astart_fileout
-character(max_filename_size) astart1_umfile
-character(max_varname_size) astart1_ncname(max_nitem)
+logical lastart_usestdname,lastart_useconfig
+character(max_filename_size) astart_ncfiles(max_nncfiles)
+character(max_filename_size) astart_umfileout
+character(max_filename_size) astart_umfilein
+character(max_varname_size) astart_ncname(max_nitem)
 
-namelist /nam_astart/ iastart_timeusage1,iastart_timeusage2,iastart_startdate, &
-                      iastart_nncfiles,iastart1_nitem, &
-                      iastart1_ncfileid,iastart1_itemid, &
-                      lastart,lastart_newlsm, &
-                      lastart1,lastart1_usestdname,lastart1_useconfig, &
-                      lastart2, &
-                      astart_filein,astart_fileout,astart1_umfile,astart1_ncname
+namelist /nam_astart/ lastart,astart_umfilein,astart_umfileout, &
+                      iastart_timeusage1,iastart_timeusage2,iastart_startdate, &
+                      lastart_usestdname,lastart_useconfig, &
+                      iastart_nncfiles,astart_ncfiles, &
+                      iastart_nitem, &
+                      iastart_ncfileid,astart_ncname,iastart_stashcode, &
+                      lastart_newlsm
 
 ! ostart namelist
 
 integer iostart_timeusage1,iostart_timeusage2,iostart_startdate(6)
 integer iostart_nncfiles
-integer iostart_nitem,iostart_ncfileid(max_nitem),iostart_itemid(max_nitem)
+integer iostart_nitem,iostart_ncfileid(max_nitem),iostart_stashcode(max_nitem)
 logical lostart,lostart_usestdname,lostart_useconfig
-character(max_filename_size) ostart_filein(max_nncfiles)
-character(max_filename_size) ostart_fileout
-character(max_filename_size) ostart_umfile
+character(max_filename_size) ostart_ncfiles(max_nncfiles)
+character(max_filename_size) ostart_umfileout
+character(max_filename_size) ostart_umfilein
 character(max_varname_size) ostart_ncname(max_nitem)
 logical lostart_bathy,lostart_bathy_depthmask
-character(max_filename_size) ostart_bathy_filein
-character(max_varname_size) ostart_bathy_ncname
+character(max_filename_size) ostart_bathyfile
+character(max_varname_size) ostart_bathyncname
 logical lostart_islands_replace, lostart_islands_add
 character(max_filename_size) ostart_islands_filein
 
-namelist /nam_ostart/ iostart_timeusage1,iostart_timeusage2,iostart_startdate, &
-                      iostart_nncfiles,iostart_nitem,iostart_ncfileid, &
-                      iostart_itemid, &
-                      lostart,lostart_usestdname,lostart_useconfig, &
-                      ostart_filein,ostart_fileout,ostart_umfile, &
-                      ostart_ncname, &
-                      lostart_bathy,ostart_bathy_filein,ostart_bathy_ncname, &
-                      lostart_bathy_depthmask, &
-                      lostart_islands_replace,lostart_islands_add, &
-                      ostart_islands_filein
+namelist /nam_ostart/ lostart, &
+     ostart_umfilein, ostart_umfileout, &
+     iostart_timeusage1, iostart_timeusage2, iostart_startdate, &
+     lostart_usestdname, lostart_useconfig, &
+     iostart_nncfiles, ostart_ncfiles, &
+     iostart_nitem, &
+     iostart_ncfileid, ostart_ncname, iostart_stashcode, &
+     lostart_bathy,ostart_bathyfile,ostart_bathyncname, &
+     lostart_bathy_depthmask, &
+     lostart_islands_replace, lostart_islands_add, ostart_islands_filein
 
 integer i, j, k, ierr, ifile
 
@@ -517,12 +516,10 @@ igenanc_nfield = 0
 lastart = .false.
 iastart_nncfiles = 1
 lastart_newlsm = .false.
-lastart1 = .false.
-lastart1_usestdname = .true.
-lastart1_useconfig = .false.
-iastart1_nitem = 0
-iastart1_ncfileid = 1
-lastart2 = .false.
+lastart_usestdname = .true.
+lastart_useconfig = .false.
+iastart_nitem = 0
+iastart_ncfileid = 1
 lostart = .false.
 iostart_nncfiles = 1
 lostart_bathy = .false.
@@ -694,8 +691,8 @@ if (iastart_nncfiles > max_nncfiles) then
    ierr = 1
 endif
 
-if (iastart1_nitem > max_nitem) then
-   write(*,*)'ERROR: iastart1_nitem = ',iastart1_nitem, &
+if (iastart_nitem > max_nitem) then
+   write(*,*)'ERROR: iastart_nitem = ',iastart_nitem, &
              ' > max_nitem = ',max_nitem
    write(*,*)'Increase max_nitem and recompile mkancil'
    ierr = 1
@@ -1047,27 +1044,25 @@ do ifile=1,nancfiles
    endif
 enddo
 
-if (lastart .and. lastart1) &
-  call create_astart1(astart_filein,astart_fileout, &
-                      astart1_umfile,astart1_ncname, &
-                      lastart_newlsm,lastart1_usestdname,lastart1_useconfig, &
-                      iastart_nncfiles,iastart1_nitem, &
-                      iastart1_ncfileid,iastart1_itemid, &
-                      iastart_timeusage1,iastart_timeusage2, &
-                      iastart_startdate)
-
-! if (lastart .and. lastart2) &
-!   call create_astart2()
+if (lastart) &
+  call create_astart(astart_umfilein, astart_umfileout, &
+                     iastart_nncfiles, astart_ncfiles, &
+                     iastart_timeusage1, iastart_timeusage2, iastart_startdate, &
+                     iastart_nitem, &
+                     iastart_ncfileid, astart_ncname, iastart_stashcode, &
+                     lastart_usestdname, lastart_useconfig, &
+                     lastart_newlsm)
 
 if (lostart) &
-  call create_ostart(ostart_filein,ostart_fileout,ostart_umfile,ostart_ncname, &
+  call create_ostart(ostart_umfilein, ostart_umfileout, &
+                     iostart_nncfiles, ostart_ncfiles, &
+                     iostart_timeusage1, iostart_timeusage2, iostart_startdate, &
+                     iostart_nitem, &
+                     iostart_ncfileid, ostart_ncname, iostart_stashcode, &
                      lostart_usestdname,lostart_useconfig, &
-                     iostart_nncfiles,iostart_nitem, &
-                     iostart_ncfileid,iostart_itemid, &
-                     iostart_timeusage1,iostart_timeusage2,iostart_startdate, &
-                     lostart_bathy,ostart_bathy_filein,ostart_bathy_ncname, &
+                     lostart_bathy, ostart_bathyfile, ostart_bathyncname, &
                      lostart_bathy_depthmask, &
-                     lostart_islands_replace,lostart_islands_add, &
+                     lostart_islands_replace, lostart_islands_add, &
                      ostart_islands_filein)
 
 write(*,*)'End of mkancil'

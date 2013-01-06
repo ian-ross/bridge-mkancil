@@ -18,8 +18,7 @@ POBJ= util_xancil.po xancil_Init.po xio_xancil.po
 TCL= xancil_main.tcl functions.tcl leftbox.tcl rightbox.tcl gridconfig.tcl \
      ozone.tcl smow.tcl slt.tcl soil.tcl veg.tcl vegfrac.tcl vegfunc.tcl \
      vegdist.tcl sst.tcl ice.tcl orog.tcl mask.tcl lfrac.tcl ts1.tcl flux.tcl \
-     genanc_config.tcl genanc.tcl astart_config.tcl astart1.tcl astart2.tcl \
-     combobox.tcl
+     genanc_config.tcl genanc.tcl astart.tcl ostart.tcl combobox.tcl
 
 mkancil.o: mkancil.f90 module.F90
 netcdf.o: netcdf.f90 module.F90

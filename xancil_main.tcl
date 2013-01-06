@@ -51,13 +51,6 @@ if {! [file exists $exec]} {
    set exec [file normalize [file join $exec_dir mkancil]]
 }
 
-#set ancil_types "config gridconfig \
-#                 ozone sst ice orog mask lfrac \
-#                 smow slt soil veg vegfrac vegfunc vegdist \
-#                 ws htflux pme ts1 iceff flux \
-#                 ausrmulti ausrancil ousrmulti ousrancil usrtr \
-#                 genanc_config genanc \
-#                 astart"
 set ancil_types "config gridconfig \
                  ozone smow slt soil veg vegfrac vegfunc vegdist \
                  sst ice orog mask lfrac \
@@ -65,7 +58,7 @@ set ancil_types "config gridconfig \
                  ts1 flux \
                  ousrmulti ousrancil \
                  genanc_config genanc \
-                 astart"
+                 astart ostart"
 
 # Just in case default values are not set
 
@@ -302,9 +295,8 @@ source [file join $xancil_dir "ousrmulti.tcl"]
 source [file join $xancil_dir "ousrancil.tcl"]
 source [file join $xancil_dir "genanc_config.tcl"]
 source [file join $xancil_dir "genanc.tcl"]
-source [file join $xancil_dir "astart_config.tcl"]
-source [file join $xancil_dir "astart1.tcl"]
-source [file join $xancil_dir "astart2.tcl"]
+source [file join $xancil_dir "astart.tcl"]
+source [file join $xancil_dir "ostart.tcl"]
 source [file join $xancil_dir "combobox.tcl"]
 source [file join $xancil_dir "scrolledframe.tcl"]
 

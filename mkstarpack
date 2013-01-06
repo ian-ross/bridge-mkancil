@@ -17,7 +17,7 @@ XANCILFILES="xancil_main.tcl functions.tcl leftbox.tcl rightbox.tcl \
              lfrac.tcl ts1.tcl flux.tcl \
              ousrancil.tcl ousrmulti.tcl \
              genanc_config.tcl genanc.tcl \
-             astart_config.tcl astart1.tcl astart2.tcl \
+             astart.tcl ostart.tcl \
              combobox.tcl scrolledframe.tcl $LIBXANCIL"
 
 rm -rf tclkitcopy

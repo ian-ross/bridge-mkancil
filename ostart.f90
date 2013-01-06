@@ -1,12 +1,12 @@
 
 !==============================================================================!
 
-subroutine create_ostart(filein,fileout,umfile,ncname, &
-                         lusestdname,luseconfig, &
-                         nncfiles1,nitem,ncfileid,itemid, &
-                         itimeusage1,itimeusage2,istartdate, &
-                         lbathy,bathyfile,bathyncname,lbathydepthmask, &
-                         lireplace,liadd,islandsfile)
+subroutine create_ostart(umfilein, umfileout, nncfiles1, oncfiles, &
+                         itimeusage1, itimeusage2, istartdate, &
+                         nitem, ncfileid, ncname, itemid, &
+                         lusestdname, luseconfig, &
+                         lbathy, bathyfile, bathyncname, lbathydepthmask, &
+                         lireplace, liadd, islandsfile)
 use getkind
 use lsmask
 use constants
@@ -19,7 +19,7 @@ implicit none
 integer nncfiles1,nitem,ncfileid(nitem+1),itemid(nitem+1)
 integer itimeusage1,itimeusage2,istartdate(6)
 logical lusestdname,luseconfig
-character(*) filein(nncfiles1),fileout,umfile,ncname(nitem+1)
+character(*) oncfiles(nncfiles1),umfileout,umfilein,ncname(nitem+1)
 logical lbathy,lbathydepthmask,lireplace,liadd
 character(*) bathyfile,bathyncname,islandsfile
 
@@ -63,7 +63,7 @@ real(rtype) rmdi_nc
 integer imdi_nc
 
 
-write (*,*) 'Writing Ocean start dump ', trim(fileout)
+write (*,*) 'Writing Ocean start dump ', trim(umfileout)
 
 ! Don't use l32bit, only write 32 bit packed data if input UM dump
 ! data is packed.
@@ -81,7 +81,7 @@ write(*,*)'lwfio = ',lwfio
 write(*,*)'iwfio_size = ',iwfio_size
 write(*,*)'nncfiles1 = ',nncfiles1
 do i=1,nncfiles1
-    write(*,*)'filein(',i,') = ',trim(filein(i))
+    write(*,*)'oncfiles(',i,') = ',trim(oncfiles(i))
 enddo
 write(*,*)'nitem = ',nitem
 do i=1,nitem
@@ -111,15 +111,15 @@ if (nitem > 0) then
 
    allocate (ncid(nncfiles1))
    do i = 1, nncfiles1
-      call open_ncfile(filein(i), 'r', ncid(i), ierr)
+      call open_ncfile(oncfiles(i), 'r', ncid(i), ierr)
    enddo
 endif
 
-call pptype(umfile,lum,intype)
+call pptype(umfilein,lum,intype)
 write(*,*)'lum = ',lum
 write(*,*)'intype = ',intype
 if (.not. lum) then
-   write(*,*)'ERROR: file ',trim(umfile),' is not a UM file'
+   write(*,*)'ERROR: file ',trim(umfilein),' is not a UM file'
    stop
 endif
 if (intype(1:1) == 'C' .or. intype(1:1) == 'c') then
@@ -146,8 +146,8 @@ write(*,*)'outtype = ',outtype
 lswappack = intype(2:2) /= outtype(2:2)
 write(*,*)'lswappack = ',lswappack
 
-call openff(ichan,umfile,'r',intype)
-call openff(ochan,fileout,'w',outtype)
+call openff(ichan,umfilein,'r',intype)
+call openff(ochan,umfileout,'w',outtype)
 
 ! Read/write fixed length header
 
@@ -192,11 +192,8 @@ if (itimeusage1 == 0) then
 
    if (lusestdname) then
 
-      inewpos = fixhdi(150) + (itemid(1)-1)*64 + 41
-      call skip(ichan,curpos,inewpos)
-      n1 = 1
-      call rdblki(istashcode,n1,n1,ichan,inewpos,eof)
-      write(*,*)'istashcode = ',istashcode,' from item ',itemid(1)
+      istashcode = itemid(1)
+      write(*,*)'istashcode = ',istashcode,' from item 1'
 
       call get_stdname_from_stashcode(model,istashcode,stdname,ierr)
       if (ierr /= 0) then
@@ -208,7 +205,7 @@ if (itimeusage1 == 0) then
       call get_varname_from_stdname(ncid(ncfileid(1)),stdname,varname,ierr)
       if (ierr /= 0) then
          write(*,*)'ERROR: standard name ',trim(stdname), &
-                   ' not found in NetCDF file ',trim(filein(ncfileid(1)))
+                   ' not found in NetCDF file ',trim(oncfiles(ncfileid(1)))
          stop
       endif
       write(*,*)'variable name for standard name ',trim(stdname),' = ', &
@@ -508,7 +505,7 @@ call skip(ochan,curpos,onewpos)
 
 do i=1,fixhdi(152)
 
-   lreplace = lreplace .or. (iitem <= nitem .and. i == itemid(iitem))
+   lreplace = lreplace .or. (iitem <= nitem .and. stash_code(i) == itemid(iitem))
 
    if (lreplace) then
 
@@ -537,7 +534,7 @@ do i=1,fixhdi(152)
                                        varname,ierr)
          if (ierr /= 0) then
             write(*,*)'ERROR: standard name ',trim(stdname), &
-                      ' not found in NetCDF file ',trim(filein(ncfileid(iitem)))
+                      ' not found in NetCDF file ',trim(oncfiles(ncfileid(iitem)))
             stop
          endif
          write(*,*)'variable name for standard name ',trim(stdname),' = ', &

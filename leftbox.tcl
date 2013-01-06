@@ -1,8 +1,7 @@
 
 # Left hand side canvas
 
-#set ngroup 6
-set ngroup 8
+set ngroup 7
 set xorigin 20
 set yorigin 20
 set xspace 20
@@ -10,22 +9,18 @@ set yspace 20
 set yscrollbot [expr {$yorigin+$yspace}]
 
 set nentry(0) 1  ; set level(0) 0
-#set nentry(1) 4  ; set level(1) 1
-set nentry(1) 6  ; set level(1) 1
+set nentry(1) 5  ; set level(1) 1
 set nentry(2) 3  ; set level(2) 2
 set nentry(3) 15 ; set level(3) 2
 set nentry(4) 4  ; set level(4) 2
 set nentry(5) 1  ; set level(5) 2
-set nentry(6) 3  ; set level(6) 2
-set nentry(7) 5  ; set level(7) 2
+set nentry(6) 2  ; set level(6) 2
 
 set status(0) "on"
 for {set i 0} {$i < $ngroup} {incr i} {
    set prev [expr $i-1]
    set xpos($i) [expr $xorigin + $level($i)*$xspace]
-   if {$i > 0} {
-      set status($i) "off"
-   }
+   if {$i > 0} { set status($i) "off" }
 
    for {set j 1} {$j <= $nentry($i)} {incr j} {
       set ypos($i,$j) $yorigin
@@ -40,37 +35,12 @@ set title(1,1) "Configuration"                        ; set next(1,1) group2
 set title(1,2) "Atmosphere Ancillary Files"           ; set next(1,2) group3
 set title(1,3) "Ocean Ancillary Files"                ; set next(1,3) group4
 set title(1,4) "Generalised Ancillary Files"          ; set next(1,4) group5
-set title(1,5) "Atmosphere Start Dump"                ; set next(1,5) group6
-set title(1,6) "Ocean Start Dump"                     ; set next(1,6) group7
+set title(1,5) "Dump Files"                           ; set next(1,5) group6
 
 set title(2,1) "General Configuration"                ; set next(2,1) {config}
 set title(2,2) "Grid Configuration"                   ; set next(2,2) {gridconfig}
-set title(2,3) "Select Ancillary Files to be Created" ; set next(2,3) {switchancil}
-
-#set title(3,1) "Ozone"                                           ; set next(3,1) {ancil ozone}
-#set title(3,2) "Soil moisture and snow depth"                    ; set next(3,2) {ancil smow}
-#set title(3,3) "Deep soil temperatures"                          ; set next(3,3) {ancil slt}
-#set title(3,4) "Soil : VSMC, hydrological/thermal conductivity etc."; set next(3,4) {ancil soil}
-#set title(3,5) "Effective vegetation parameters"                 ; set next(3,5) {ancil veg}
-#set title(3,6) "Vegetation Distribution: Area"                   ; set next(3,6) {ancil veg.frac}
-#set title(3,7) "Vegetation Distribution: Structure"              ; set next(3,7) {ancil veg.func}
-#set title(3,8) "Vegetation Distribution: Disturbance"            ; set next(3,8) {ancil veg.dist}
-#set title(3,9) "Sea surface temperatures"                        ; set next(3,9) {ancil sst}
-#set title(3,10) "Sea ice fields"                                 ; set next(3,10) {ancil ice}
-#set title(3,11) "User multi-level ancillary file & fields"       ; set next(3,11) {ancil ausrmulti}
-#set title(3,12) "User single-level ancillary file & fields"      ; set next(3,12) {ancil ausrancil}
-#set title(3,13) "Orography ancillary file and fields"            ; set next(3,13) {ancil orog}
-#set title(3,14) "Land-Sea-Mask ancillary file and fields"        ; set next(3,14) {ancil mask}
-#set title(3,15) "Land fraction file"                             ; set next(3,15) {ancil lfrac}
-#set title(4,1) "Wind and pressure forcing"                       ; set next(4,1) {ancil ws}
-#set title(4,2) "Thermal forcing"                                 ; set next(4,2) {ancil htflux}
-#set title(4,3) "Fresh-water input and water type"                ; set next(4,3) {ancil pme}
-#set title(4,4) "Reference SST, SSS, Air-Temp & Ice-Depth"        ; set next(4,4) {ancil ts1}
-#set title(4,5) "Ice Model forcing fields"                        ; set next(4,5) {ancil iceff}
-#set title(4,6) "Flux Correction fields"                          ; set next(4,6) {ancil flux}
-#set title(4,7) "User multi-level ancillary file & fields"        ; set next(4,7) {ancil ousrmulti}
-#set title(4,8) "User single-level ancillary file & fields"       ; set next(4,8) {ancil ousrancil}
-#set title(4,9) "User Defined Tracer fields. Extra Tracers"       ; set next(4,9) {ancil usrtr}
+set title(2,3) "Ancillary Files to Create"            ; set next(2,3) {switchancil}
+#set title(2,3) "Select Ancillary Files to be Created" ; set next(2,3) {switchancil}
 
 set title(3,1) "Ozone"                         ; set next(3,1)  {ancil ozone}
 set title(3,2) "Soil Moisture and Snow Depth"  ; set next(3,2)  {ancil smow}
@@ -88,25 +58,22 @@ set title(3,13) "Land Fraction"                ; set next(3,13) {ancil lfrac}
 set title(3,14) "Multi-level User Fields"      ; set next(3,14) {ancil ausrmulti}
 set title(3,15) "Single-level User Fields"     ; set next(3,15) {ancil ausrancil}
 
-set title(4,1) "Reference SST, SSS, Air-Temp & Ice-Depth" ; set next(4,1) {ancil ts1}
+set title(4,1) "Reference Fields"              ; set next(4,1) {ancil ts1}
+#set title(4,1) "Reference SST, SSS, Air-Temp & Ice-Depth" ; set next(4,1) {ancil ts1}
 set title(4,2) "Flux Correction Fields"        ; set next(4,2)  {ancil flux}
 set title(4,3) "Multi-level User Fields"       ; set next(4,3)  {ancil ousrmulti}
 set title(4,4) "Single-level User Fields"      ; set next(4,4)  {ancil ousrancil}
 
 set title(5,1) "Configuration" ; set next(5,1) {ancil genanc_config \"1 4 5 1\"}
 
-set title(6,1) "Configuration" ; set next(6,1) {ancil astart_config}
-set title(6,2) "Start Dump Fields, Use Existing Dump" ; set next(6,2) {ancil astart1}
-set title(6,3) "Start Dump Extra Fields" ; set next(6,3) {ancil astart2}
+set title(6,1) "Atmosphere Start Dump"         ; set next(6,1) {ancil astart}
+set title(6,2) "Ocean Start Dump"              ; set next(6,2) {ancil ostart}
 
-set title(7,1) "Configuration" ; set next(7,1) {}
-set title(7,2) "Ocean Mask" ; set next(7,2) {}
-set title(7,3) "Ocean Islands" ; set next(7,3) {}
-set title(7,4) "Start Dump Fields, Use Existing Dump" ; set next(7,4) {}
-set title(7,5) "Start Dump Extra Fields" ; set next(7,5) {}
 
-canvas .canvas -yscrollcommand "$w3.yscroll set" -height 600 -width 330 \
+canvas .canvas -yscrollcommand "$w3.yscroll set" -height 600 -width 230 \
                -scrollregion [concat {0 0} $yorigin $yscrollbot]
+#canvas .canvas -yscrollcommand "$w3.yscroll set" -height 600 -width 330 \
+#               -scrollregion [concat {0 0} $yorigin $yscrollbot]
 yscrollbar $w3.yscroll .canvas
 pack .canvas -side left -fill both -expand yes -in $w3
 

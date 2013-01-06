@@ -106,10 +106,14 @@ proc switchancil {} {
    ancil_onoff $ww.usrtr "User defined tracer " usrtr(create) 0
 
    spacer $ww.spacer3
+   ancil_onoff $ww.astart "Atmosphere dump file " astart(create) 1
+   ancil_onoff $ww.ostart "Ocean dump file " ostart(create) 1
+
+   spacer $ww.spacer4
    for {set i 1} {$i <= $genanc_config(nancfile)} {incr i} {
       ancil_onoff $ww.genanc$i "Generalised ancillary file $i " genanc($i,create) 1
    }
-   spacer $ww.spacer4
+   spacer $ww.spacer5
 }
 
 proc ancil {type {xarg 0}} {
@@ -169,12 +173,10 @@ proc ancil {type {xarg 0}} {
       genanc_configwin $ww $xarg
    } elseif {$type == "genanc"} {
       genancwin $ww $xarg
-   } elseif {$type == "astart_config"} {
-      astart_configwin $ww
-   } elseif {$type == "astart1"} {
-      astart1win $ww
-   } elseif {$type == "astart2"} {
-      astart2win $ww
+   } elseif {$type == "astart"} {
+      astartwin $ww
+   } elseif {$type == "ostart"} {
+      ostartwin $ww
    } else {
       label $ww.titler -text "$type function not implemented yet" -fg red
       pack $ww.titler -side top
