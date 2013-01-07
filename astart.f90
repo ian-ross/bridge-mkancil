@@ -246,7 +246,7 @@ if (fixhd(116) /= IMDI .and. fixhd(116)*fixhd(117) > rhead_dim) &
 if (fixhd(121) /= IMDI .and. fixhd(121)*fixhd(122) > rhead_dim) &
    rhead_dim = fixhd(121)*fixhd(122)
 if (fixhd(126) /= IMDI .and. fixhd(126)*fixhd(127) > rhead_dim) &
-   rhead_dim = fixhd(126)*fixhd(126)
+   rhead_dim = fixhd(126)*fixhd(127)
 if (fixhd(131) > rhead_dim) rhead_dim = fixhd(131)
 if (fixhd(136) > rhead_dim) rhead_dim = fixhd(136)
 

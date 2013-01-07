@@ -256,7 +256,7 @@ if (fixhdi(116) /= IMDI .and. fixhdi(116)*fixhdi(117) > rhead_dim) &
 if (fixhdi(121) /= IMDI .and. fixhdi(121)*fixhdi(122) > rhead_dim) &
    rhead_dim = fixhdi(121)*fixhdi(122)
 if (fixhdi(126) /= IMDI .and. fixhdi(126)*fixhdi(127) > rhead_dim) &
-   rhead_dim = fixhdi(126)*fixhdi(126)
+   rhead_dim = fixhdi(126)*fixhdi(127)
 if (fixhdi(131) > rhead_dim) rhead_dim = fixhdi(131)
 if (fixhdi(136) > rhead_dim) rhead_dim = fixhdi(136)
 
@@ -867,8 +867,7 @@ integer, parameter :: buff_size = 32768
 character(len=buff_size) :: buff
 logical in
 
-open (unit=10, file=fname, form='formatted', status='old')
-inquire (unit=10, size=sz)
+call ffsize(sz, fname)
 if (sz > buff_size) then
    write (*,*) 'Islands file too large: recompile with larger buff_size'
    stop
@@ -876,6 +875,7 @@ end if
 buff = ' '
 
 pos = 1
+open (unit=10, file=fname, form='formatted', status='old')
 do while (.true.)
    read (10, '(a)', end=99) tmp
    line = trim(tmp)
@@ -884,6 +884,7 @@ do while (.true.)
    buff(pos:pos+len-1) = line(1:len)
    pos = pos + len + 1
 end do
+close (unit=10)
 
 99 continue
 pos = 1

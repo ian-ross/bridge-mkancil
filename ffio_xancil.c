@@ -25,6 +25,7 @@
 #define openff  OPENFF
 #define closeff CLOSEFF
 #define abortff ABORTFF
+#define ffsize FFSIZE
 #define rdblki  RDBLKI
 #define rdblkp  RDBLKP
 #define rdblkr  RDBLKR
@@ -36,6 +37,7 @@
 #define openff  openff_
 #define closeff closeff_
 #define abortff abortff_
+#define ffsize  ffsize_
 #define rdblki  rdblki_
 #define rdblkp  rdblkp_
 #define rdblkr  rdblkr_
@@ -59,6 +61,7 @@ typedef struct finfo_st {
 void openff(FILEINFO **, fpchar, fpchar, fpchar, int, int, int);
 void closeff(FILEINFO **);
 void abortff(FILEINFO **);
+void ffsize(INTEGER *, fpchar, int);
 void rdblki(INTEGER *, INTEGER *, INTEGER *, FILEINFO **, BYTEOFF *, INTEGER *);
 void rdblkp(INTEGER *, INTEGER *, INTEGER *, FILEINFO **, BYTEOFF *, INTEGER *);
 void rdblkr(REAL *, INTEGER *, INTEGER *, FILEINFO **, BYTEOFF *, INTEGER *);
@@ -177,6 +180,58 @@ void abortff(FILEINFO **unit)
        perror("fclose error");
     }
     abort();
+}
+/*
+  ------------------------------------------------------------------------------
+*/
+void ffsize(INTEGER *sz, fpchar file, int flen)
+{
+    char *p, *cfile;
+    long csz;
+    FILE *fp;
+
+    /* convert fortran CHARACTERs to c chars */
+
+    cfile = ( char *) malloc(flen+1);
+    strncpy(cfile, file, flen);
+    cfile[flen] = '\0';
+
+    /* strip trailing blanks */
+
+    p = cfile+flen-1;
+    while(*p == ' ')
+    {
+       *p = '\0';
+       p--;
+    }
+
+    /* open file */
+
+    if ((fp = fopen(cfile, "r")) == NULL)
+    {
+       printf("Error opening file %s \n",cfile);
+       perror("fopen error");
+       abort();
+    }
+
+    /* determine file size */
+
+    if (fseek(fp, 0, SEEK_END) == -1)
+    {
+       printf("Failed to seek on file %s \n",cfile);
+       perror("fopen error");
+       abort();
+    }
+    csz = ftell(fp);
+    *sz = (INTEGER)csz;
+
+    /* close file */
+
+    fclose(fp);
+
+    free(cfile);
+
+    return;
 }
 /*
   ------------------------------------------------------------------------------
