@@ -1,7 +1,7 @@
 package provide xancil "1.0"
 
-set xancil_version 0.54
-set versiondate 28-November-2012
+set xancil_version 0.56
+set versiondate 09-February-2013
 #set versiondate Development
 set HOMEDIR [pwd]
 set filter ".* *"

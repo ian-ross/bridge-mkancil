@@ -1166,11 +1166,6 @@ integer(i64) incr
 real(rtype) time
 character(max_varname_size) dimnames(4),dimname
 
-! Get calendar type from NetCDF file
-
-call get_nccal(ncid,varname,ical)
-write(*,*)'ical = ',ical
-
 ! Get time dimension name and id
 
 call get_ncdiminfo(varname,ncid,nd,dimnames,ndims)
@@ -1193,6 +1188,11 @@ write(*,*)'dimname = ',dimname
 write(*,*)'dimid = ',dimid
 
 
+! Get calendar type from time dimension in NetCDF file
+
+call get_nccal(ncid,dimname,ical)
+write(*,*)'ical = ',ical
+
 ! Get first time value from NetCDF file
 
 call get_ncdim1(dimname, ncid, 1, time)
@@ -1208,7 +1208,8 @@ write(*,*)'iscale = ',iscale
 ! Get first date from NetCDF file
 
 if (intunit == 2 .or. intunit == 3 .or. intunit == 4) intunit = 5
-incr = nint(time*iscale)
+incr = nint(time*iscale,i64)
+write(*,*)'incr = ',incr
 call incr_date(intunit,ical,istartdate,idate,incr,.false.)
 
 write(*,*)'idate = ',idate
