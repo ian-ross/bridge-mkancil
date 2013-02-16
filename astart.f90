@@ -4,6 +4,7 @@
 subroutine create_astart(umfilein, umfileout, nncfiles1, ancfiles, &
                          itimeusage1, itimeusage2, istartdate, &
                          nitem, ncfileid, ncname, itemid, &
+                         cloneitemid, newppcode, &
                          lusestdname, luseconfig, lnewlsm)
 
 use getkind
@@ -16,6 +17,7 @@ use types
 implicit none
 
 integer nncfiles1,nitem,ncfileid(nitem+1),itemid(nitem+1)
+integer cloneitemid(nitem+1),newppcode(nitem+1)
 integer itimeusage1,itimeusage2,istartdate(6)
 logical lnewlsm,lusestdname,luseconfig
 character(*) ancfiles(nncfiles1),umfileout,umfilein,ncname(nitem+1)

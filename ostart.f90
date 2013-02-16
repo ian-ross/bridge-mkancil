@@ -4,6 +4,7 @@
 subroutine create_ostart(umfilein, umfileout, nncfiles1, oncfiles, &
                          itimeusage1, itimeusage2, istartdate, &
                          nitem, ncfileid, ncname, itemid, &
+                         cloneitemid, newppcode, &
                          lusestdname, luseconfig, &
                          lbathy, bathyfile, bathyncname, lbathydepthmask, &
                          lireplace, liadd, islandsfile)
@@ -17,6 +18,7 @@ use types
 implicit none
 
 integer nncfiles1,nitem,ncfileid(nitem+1),itemid(nitem+1)
+integer cloneitemid(nitem+1),newppcode(nitem+1)
 integer itimeusage1,itimeusage2,istartdate(6)
 logical lusestdname,luseconfig
 character(*) oncfiles(nncfiles1),umfileout,umfilein,ncname(nitem+1)

@@ -408,6 +408,7 @@ namelist /nam_genanc/ igenanc_model,igenanc_timeusage1,igenanc_timeusage2, &
 integer iastart_timeusage1,iastart_timeusage2,iastart_startdate(6)
 integer iastart_nncfiles
 integer iastart_nitem,iastart_ncfileid(max_nitem),iastart_stashcode(max_nitem)
+integer iastart_clone_stashcode(max_nitem),iastart_ppcode(max_nitem)
 logical lastart,lastart_newlsm
 logical lastart_usestdname,lastart_useconfig
 character(max_filename_size) astart_ncfiles(max_nncfiles)
@@ -421,6 +422,7 @@ namelist /nam_astart/ lastart,astart_umfilein,astart_umfileout, &
                       iastart_nncfiles,astart_ncfiles, &
                       iastart_nitem, &
                       iastart_ncfileid,astart_ncname,iastart_stashcode, &
+                      iastart_clone_stashcode,iastart_ppcode, &
                       lastart_newlsm
 
 ! ostart namelist
@@ -428,6 +430,7 @@ namelist /nam_astart/ lastart,astart_umfilein,astart_umfileout, &
 integer iostart_timeusage1,iostart_timeusage2,iostart_startdate(6)
 integer iostart_nncfiles
 integer iostart_nitem,iostart_ncfileid(max_nitem),iostart_stashcode(max_nitem)
+integer iostart_clone_stashcode(max_nitem),iostart_ppcode(max_nitem)
 logical lostart,lostart_usestdname,lostart_useconfig
 character(max_filename_size) ostart_ncfiles(max_nncfiles)
 character(max_filename_size) ostart_umfileout
@@ -446,6 +449,7 @@ namelist /nam_ostart/ lostart, &
      iostart_nncfiles, ostart_ncfiles, &
      iostart_nitem, &
      iostart_ncfileid, ostart_ncname, iostart_stashcode, &
+     iostart_clone_stashcode,iostart_ppcode, &
      lostart_bathy,ostart_bathyfile,ostart_bathyncname, &
      lostart_bathy_depthmask, &
      lostart_islands_replace, lostart_islands_add, ostart_islands_filein
@@ -1050,6 +1054,7 @@ if (lastart) &
                      iastart_timeusage1, iastart_timeusage2, iastart_startdate, &
                      iastart_nitem, &
                      iastart_ncfileid, astart_ncname, iastart_stashcode, &
+                     iastart_clone_stashcode, iastart_ppcode, &
                      lastart_usestdname, lastart_useconfig, &
                      lastart_newlsm)
 
@@ -1059,6 +1064,7 @@ if (lostart) &
                      iostart_timeusage1, iostart_timeusage2, iostart_startdate, &
                      iostart_nitem, &
                      iostart_ncfileid, ostart_ncname, iostart_stashcode, &
+                     iostart_clone_stashcode, iostart_ppcode, &
                      lostart_usestdname,lostart_useconfig, &
                      lostart_bathy, ostart_bathyfile, ostart_bathyncname, &
                      lostart_bathy_depthmask, &
