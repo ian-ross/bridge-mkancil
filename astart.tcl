@@ -1,12 +1,12 @@
 proc astartwin {win} {
 
-   global astart
+   global astart astart_ppwin astart_clstashsel
 
    set astart(sctmp) ""
    set astart(ncftmp) ""
    set astart(ncvtmp) ""
    set astart(sccltmp) "n/a"
-   set astart(pptmp) ""
+   set astart(pptmp) "n/a"
 
    set ww0 $win.ww0
    frame $ww0 -bd 2
@@ -32,13 +32,15 @@ proc astartwin {win} {
 
    title $ww0.title "Atmosphere Start Dump Configuration"
    spacer $ww0.spacer0
-   create_win2 $ww0.create $wh0 "Create Atmosphere Start Dump file? " astart(create)
+   create_win2 $ww0.create $wh0 \
+       "Create Atmosphere Start Dump file? " astart(create)
 
    spacer $ww0.spacer1
    get_filename $ww1.infile "Enter input UM Atmosphere Start Dump file name: " \
                 astart(umfile_in) "*" astart_uminfile
    spacer $ww1.spacer2
-   set_filename $ww1.outfile "Enter output UM Atmosphere Start Dump file name: " astart(file_out)
+   set_filename $ww1.outfile \
+       "Enter output UM Atmosphere Start Dump file name: " astart(file_out)
    spacer $ww1.spacer3
 
    label $ww1.selectlabel -text "Dump file fields from NetCDF files:"
@@ -56,9 +58,12 @@ proc astartwin {win} {
 
    spacer $ww1.spacer4
    frame $ww1.butbox -bd 2
-   button $ww1.butbox.add -width 8 -text "Add" -command "add_astart_entry $ww1.mods"
-   button $ww1.butbox.upd -width 8 -text "Update" -command "upd_astart_entry $ww1.mods"
-   button $ww1.butbox.del -width 8 -text "Delete" -command "del_astart_entry $ww1.mods"
+   button $ww1.butbox.add -width 8 -text "Add" \
+       -command "add_astart_entry $ww1.mods"
+   button $ww1.butbox.upd -width 8 -text "Update" \
+       -command "upd_astart_entry $ww1.mods"
+   button $ww1.butbox.del -width 8 -text "Delete" \
+       -command "del_astart_entry $ww1.mods"
    pack $ww1.butbox -side top -fill both -expand yes
    pack $ww1.butbox.add $ww1.butbox.upd $ww1.butbox.del -side left -expand yes
    spacer $ww1.spacer5
@@ -71,9 +76,13 @@ proc astartwin {win} {
                       -width 5 -borderwidth 2 -elementborderwidth 2 \
                       -highlightthickness 1 -editable no
    pack $ww1.stash.label -side left -fill none -expand no
+   bind [$ww1.stash.stashcode subwidget listbox] <<ListboxSelect>> \
+       "astart_stashcode_selection_change %W"
    pack $ww1.stash.stashcode -side left -fill both -expand yes -anchor e
-   get_astart_ncfilename $ww1.ncfile "NetCDF file name: " astart(ncftmp) nc astart_ncfile
-   select_varname1 $ww1.varname "NetCDF variable name: " astart(ncvtmp) astart(ncftmp)
+   get_astart_ncfilename $ww1.ncfile "NetCDF file name: " \
+       astart(ncftmp) nc astart_ncfile
+   select_varname1 $ww1.varname "NetCDF variable name: " \
+       astart(ncvtmp) astart(ncftmp)
    spacer $ww1.spacer7
    frame $ww1.stash2
    pack $ww1.stash2 -side top -fill both -expand yes
@@ -85,6 +94,10 @@ proc astartwin {win} {
    pack $ww1.stash2.label -side left -fill none -expand no
    pack $ww1.stash2.stashcode -side left -fill both -expand yes -anchor e
    set_var $ww1.pp "PP code:" astart(pptmp) 0 yes
+   set astart_ppwin $ww1.pp
+   set astart_clstashsel $ww1.stash2
+   set_win_state $astart_clstashsel false
+   set_win_state $astart_ppwin false
    spacer $ww1.spacer8
 
    select_window_dump $ww1.date1 $wh1 \
@@ -103,29 +116,38 @@ proc astartwin {win} {
 
 
 proc astart_uminfile {win file} {
-    global stashlist stashlabellist clonestashlabellist astart
+    global stashlist stashlabellist clonestashlabellist origstashlabellist
+    global astart
     if {$file == "" || ![file exists $file]} {
-        set clonestashlabellist ""
+        set origstashlabellist [list "n/a"]
+        set clonestashlabellist [list "n/a"]
         set stashlabellist ""
         set astart(mods) {}
     } else {
         umfilelist $win $file
         set mnew {}
         foreach m $astart(mods) {
-            if {[lsearch $stashlist [lindex $m 0]] != -1} { set mnew [lappend $mnew $m] }
+            if {[lsearch $stashlist [lindex $m 0]] != -1} {
+                set mnew [lappend $mnew $m]
+            }
         }
         if {[llength $astart(mods)] > [llength $mnew]} {
-            write_message "Removing modifications for stash codes not in selected UM input file"
+            write_message \
+                "Removing mods for stash codes not in selected UM input file"
         }
         set astart(mods) $mnew
         set astart(sctmp) ""
         set astart(ncftmp) ""
         set astart(ncvtmp) ""
         set astart(sccltmp) "n/a"
-        set astart(pptmp) ""
+        set astart(pptmp) "n/a"
 
         # Add possible new stash codes
-        for {set i 301} {$i<=340} {incr i} { lappend stashlabellist $i }
+        set origstashlabellist $stashlabellist
+        set clonestashlabellist [list "n/a"]
+        for {set i 301} {$i<=340} {incr i} {
+            lappend stashlabellist "$i STASHCODE = $i (new)"
+        }
     }
 }
 
@@ -183,10 +205,12 @@ proc astart_ncfile {win ncfile} {
 
 proc add_astart_entry {win} {
     global astart
-    if {$astart(sctmp)=="" || $astart(ncftmp)=="" || $astart(ncvtmp)==""} {return}
+    if {$astart(sctmp)=="" || $astart(ncftmp)=="" || \
+            $astart(ncvtmp)==""} {return}
     set stashcode [lindex [split $astart(sctmp)] 0]
     set clstashcode [lindex [split $astart(sccltmp)] 0]
-    set stashname [string trim [string range $astart(sctmp) [string wordend $astart(sctmp) 0] end]]
+    set stashname [string trim [string range $astart(sctmp) \
+                                    [string wordend $astart(sctmp) 0] end]]
     set ok 1
     foreach chk $astart(mods) {
         if {$stashcode==[lindex $chk 0]} {
@@ -207,10 +231,12 @@ proc upd_astart_entry {win} {
     global astart
     set selidx [$win curselection]
     if {[llength $selidx]==0} {return}
-    if {$astart(sctmp)=="" || $astart(ncftmp)=="" || $astart(ncvtmp)==""} {return}
+    if {$astart(sctmp)=="" || $astart(ncftmp)=="" || \
+            $astart(ncvtmp)==""} {return}
     set scode [lindex [split $astart(sctmp)] 0]
     set clscode [lindex [split $astart(sccltmp)] 0]
-    set sname [string trim [string range $astart(sctmp) [string wordend $astart(sctmp) 0] end]]
+    set sname [string trim [string range $astart(sctmp) \
+                                [string wordend $astart(sctmp) 0] end]]
     set ok 1
     set idx 0
     foreach chk $astart(mods) {
@@ -241,17 +267,49 @@ proc del_astart_entry {win} {
 
 
 proc astart_selection_change {win} {
-    global astart clonestashlabellist
+    global astart clonestashlabellist origstashlabellist
+    global astart_ppwin astart_clstashsel
     set sel [lindex $astart(mods) [$win curselection]]
     set astart(sctmp) [join [list [lindex $sel 0] [lindex $sel 3]]]
     set astart(ncvtmp) [lindex $sel 4]
     set astart(ncftmp) [lindex $sel 5]
-    set astart(pptmp) [lindex $sel 2]
-    set clsre [join [list "^" [lindex $sel 1] " "] ""]
-    set clidx [lsearch -regexp $clonestashlabellist $clsre]
-    if {$clidx == -1} {
-        set astart(sccltmp) "n/a"
+    if {[regexp {\(new\)$} $astart(sctmp)]} {
+        set clonestashlabellist $origstashlabellist
+        set clsre [join [list "^" [lindex $sel 1] " "] ""]
+        set clidx [lsearch -regexp $clonestashlabellist $clsre]
+        if {$clidx == -1} {
+            set astart(sccltmp) "n/a"
+        } else {
+            set astart(sccltmp) [lindex $clonestashlabellist $clidx]
+        }
+        set astart(pptmp) [lindex $sel 2]
+        set_win_state $astart_clstashsel true
+        set_win_state $astart_ppwin true
     } else {
-        set astart(sccltmp) [lindex $clonestashlabellist $clidx]
+        set clonestashlabellist {"n/a"}
+        set astart(sccltmp) "n/a"
+        set astart(pptmp) "n/a"
+        set_win_state $astart_clstashsel false
+        set_win_state $astart_ppwin false
+    }
+}
+
+
+proc astart_stashcode_selection_change {win} {
+    global astart stashlabellist clonestashlabellist origstashlabellist
+    global astart_ppwin astart_clstashsel
+    set stashsel [lindex $stashlabellist [$win curselection]]
+    if {[regexp {\(new\)$} $stashsel]} {
+        set clonestashlabellist $origstashlabellist
+        set astart(sccltmp) [lindex $clonestashlabellist 0]
+        set astart(pptmp) ""
+        set_win_state $astart_clstashsel true
+        set_win_state $astart_ppwin true
+    } else {
+        set clonestashlabellist {"n/a"}
+        set astart(sccltmp) "n/a"
+        set astart(pptmp) "n/a"
+        set_win_state $astart_clstashsel false
+        set_win_state $astart_ppwin false
     }
 }
