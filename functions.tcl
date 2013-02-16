@@ -1156,10 +1156,16 @@ proc create_namelist {{namelist_arg {}}} {
              puts $fid "  IASTART_NITEM = [llength $astart(mods)],"
              set i 1
              foreach m $astart(mods) {
-                 set ncfileid [expr [lsearch $ncfs [lindex $m 3]] + 1]
+                 set ncfileid [expr [lsearch $ncfs [lindex $m 5]] + 1]
+                 set clstash -1
+                 if {[lindex $m 1] != "n/a"} {set clstash [lindex $m 1]}
+                 set pp -1
+                 if {[lindex $m 2] != ""} {set pp [lindex $m 2]}
                  puts  $fid "  IASTART_NCFILEID($i) = $ncfileid,"
-                 puts  $fid "  ASTART_NCNAME($i) = \"[lindex $m 2]\","
+                 puts  $fid "  ASTART_NCNAME($i) = \"[lindex $m 4]\","
                  puts  $fid "  IASTART_STASHCODE($i) = [lindex $m 0],"
+                 puts  $fid "  IASTART_CLONE_STASHCODE($i) = $clstash,"
+                 puts  $fid "  IASTART_PPCODE($i) = $pp,"
                  incr i
              }
          } elseif {$type == "ostart"} {
@@ -1197,10 +1203,16 @@ proc create_namelist {{namelist_arg {}}} {
              puts $fid "  IOSTART_NITEM = [llength $ostart(mods)],"
              set i 1
              foreach m $ostart(mods) {
-                 set ncfileid [expr [lsearch $ncfs [lindex $m 3]] + 1]
+                 set ncfileid [expr [lsearch $ncfs [lindex $m 5]] + 1]
+                 set clstash -1
+                 if {[lindex $m 1] != "n/a"} {set clstash [lindex $m 1]}
+                 set pp -1
+                 if {[lindex $m 2] != ""} {set pp [lindex $m 2]}
                  puts  $fid "  IOSTART_NCFILEID($i) = $ncfileid,"
-                 puts  $fid "  OSTART_NCNAME($i) = \"[lindex $m 2]\","
+                 puts  $fid "  OSTART_NCNAME($i) = \"[lindex $m 4]\","
                  puts  $fid "  IOSTART_STASHCODE($i) = [lindex $m 0],"
+                 puts  $fid "  IOSTART_CLONE_STASHCODE($i) = $clstash,"
+                 puts  $fid "  IOSTART_PPCODE($i) = $pp,"
                  incr i
              }
             if {$ostart(bathy)} {
@@ -4091,7 +4103,8 @@ proc select_fields {win label1 label2 label3 label4 var1 var2 var3} {
 
 proc umfilelist {win file {readfile 1}} {
    global w4 selectname
-   global nitem itemindex stashlist stashnamelist stashlabellist standardnamelist shortnamelist
+   global nitem itemindex stashlist stashnamelist standardnamelist shortnamelist
+   global stashlabellist clonestashlabellist
 
 #   puts "umfilelist ..."
    set stashlist {}
@@ -4163,12 +4176,17 @@ proc umfilelist {win file {readfile 1}} {
       set standardnamelist [getstandardname $model $version $stashlist]
       set field 0
       set stashlabellist ""
+      set clonestashlabellist ""
+      lappend clonestashlabellist "n/a"
       foreach stashname $stashnamelist {
-          lappend stashlabellist "[lindex $stashlist $field] [string trim $stashname]"
+          lappend stashlabellist \
+              "[lindex $stashlist $field] [string trim $stashname]"
+          lappend clonestashlabellist \
+              "[lindex $stashlist $field] [string trim $stashname]"
           incr field
       }
 #      write_message "stashlabellist = $stashlabellist [llength $stashlabellist]"
-   }      
+   }
 }
 
 proc umfilelistXXX {win file {readfile 1}} {

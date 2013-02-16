@@ -5,6 +5,8 @@ proc astartwin {win} {
    set astart(sctmp) ""
    set astart(ncftmp) ""
    set astart(ncvtmp) ""
+   set astart(sccltmp) "n/a"
+   set astart(pptmp) ""
 
    set ww0 $win.ww0
    frame $ww0 -bd 2
@@ -39,14 +41,15 @@ proc astartwin {win} {
    set_filename $ww1.outfile "Enter output UM Atmosphere Start Dump file name: " astart(file_out)
    spacer $ww1.spacer3
 
-   label $ww1.selectlabel -text "Dump file fields to modify:"
+   label $ww1.selectlabel -text "Dump file fields from NetCDF files:"
    pack $ww1.selectlabel -side top -fill both -expand yes
    tablelist::tablelist $ww1.mods \
-       -columns [list 0 "#" left 0 "Stash Name" left \
-                      0 "NC Variable" left 0 "NC File" left] \
+       -columns [list 4 "#" left 5 "Clone" left 5 "PP" left \
+                      0 "Stash Name" left 0 "NC Variable" left \
+                      0 "NC File" left] \
        -height 0 -width 10 -stretch all -selectmode single -activestyle none \
        -listvariable astart(mods) -showarrow 0
-   for {set c 0} {$c < 4} {incr c} { $ww1.mods columnconfigure $c -editable no }
+   for {set c 0} {$c < 6} {incr c} { $ww1.mods columnconfigure $c -editable no }
    $ww1.mods columnconfigure 0 -sortmode integer
    bind $ww1.mods <<TablelistSelect>> "astart_selection_change %W"
    pack $ww1.mods -side top -expand yes -fill both
@@ -72,14 +75,25 @@ proc astartwin {win} {
    get_astart_ncfilename $ww1.ncfile "NetCDF file name: " astart(ncftmp) nc astart_ncfile
    select_varname1 $ww1.varname "NetCDF variable name: " astart(ncvtmp) astart(ncftmp)
    spacer $ww1.spacer7
+   frame $ww1.stash2
+   pack $ww1.stash2 -side top -fill both -expand yes
+   label $ww1.stash2.label -text "Clone stash:"
+   combobox::combobox $ww1.stash2.stashcode -textvariable astart(sccltmp) \
+                      -listvar clonestashlabellist \
+                      -width 5 -borderwidth 2 -elementborderwidth 2 \
+                      -highlightthickness 1 -editable no
+   pack $ww1.stash2.label -side left -fill none -expand no
+   pack $ww1.stash2.stashcode -side left -fill both -expand yes -anchor e
+   set_var $ww1.pp "PP code:" astart(pptmp) 0 yes
+   spacer $ww1.spacer8
 
    select_window_dump $ww1.date1 $wh1 \
       "Use date from NetCDF file                            " \
       "Use date from UM start dump                          " \
       "Specify Atmosphere start dump date                   " astart(timeusage1)
-   spacer $ww1.spacer8
-   set_dumpdate $wh1.date2 "Atmosphere start" astart
    spacer $ww1.spacer9
+   set_dumpdate $wh1.date2 "Atmosphere start" astart
+   spacer $ww1.spacerA
 
 #  Pack hidden frames if required
 
@@ -89,8 +103,9 @@ proc astartwin {win} {
 
 
 proc astart_uminfile {win file} {
-    global stashlist stashlabellist astart
+    global stashlist stashlabellist clonestashlabellist astart
     if {$file == "" || ![file exists $file]} {
+        set clonestashlabellist ""
         set stashlabellist ""
         set astart(mods) {}
     } else {
@@ -106,6 +121,11 @@ proc astart_uminfile {win file} {
         set astart(sctmp) ""
         set astart(ncftmp) ""
         set astart(ncvtmp) ""
+        set astart(sccltmp) "n/a"
+        set astart(pptmp) ""
+
+        # Add possible new stash codes
+        for {set i 301} {$i<=340} {incr i} { lappend stashlabellist $i }
     }
 }
 
@@ -165,6 +185,7 @@ proc add_astart_entry {win} {
     global astart
     if {$astart(sctmp)=="" || $astart(ncftmp)=="" || $astart(ncvtmp)==""} {return}
     set stashcode [lindex [split $astart(sctmp)] 0]
+    set clstashcode [lindex [split $astart(sccltmp)] 0]
     set stashname [string trim [string range $astart(sctmp) [string wordend $astart(sctmp) 0] end]]
     set ok 1
     foreach chk $astart(mods) {
@@ -174,7 +195,9 @@ proc add_astart_entry {win} {
         }
     }
     if {$ok} {
-        lappend astart(mods) [list $stashcode $stashname $astart(ncvtmp) $astart(ncftmp)]
+        lappend astart(mods) \
+            [list $stashcode $clstashcode $astart(pptmp) $stashname \
+                 $astart(ncvtmp) $astart(ncftmp)]
     }
     $win sortbycolumn 0
 }
@@ -186,6 +209,7 @@ proc upd_astart_entry {win} {
     if {[llength $selidx]==0} {return}
     if {$astart(sctmp)=="" || $astart(ncftmp)=="" || $astart(ncvtmp)==""} {return}
     set scode [lindex [split $astart(sctmp)] 0]
+    set clscode [lindex [split $astart(sccltmp)] 0]
     set sname [string trim [string range $astart(sctmp) [string wordend $astart(sctmp) 0] end]]
     set ok 1
     set idx 0
@@ -199,7 +223,8 @@ proc upd_astart_entry {win} {
         incr idx
     }
     if {$ok} {
-        set newent [list $scode $sname $astart(ncvtmp) $astart(ncftmp)]
+        set newent [list $scode $clscode $astart(pptmp) \
+                        $sname $astart(ncvtmp) $astart(ncftmp)]
         set astart(mods) [lreplace $astart(mods) $selidx $selidx $newent]
         $win sortbycolumn 0
     }
@@ -211,13 +236,22 @@ proc del_astart_entry {win} {
     set s [lindex [$win curselection] 0]
     set astart(mods) [lreplace $astart(mods) $s $s]
     $win sortbycolumn 0
+    astart_selection_change $win
 }
 
 
 proc astart_selection_change {win} {
-    global astart
+    global astart clonestashlabellist
     set sel [lindex $astart(mods) [$win curselection]]
-    set astart(sctmp) [join [lrange $sel 0 1]]
-    set astart(ncvtmp) [lindex $sel 2]
-    set astart(ncftmp) [lindex $sel 3]
+    set astart(sctmp) [join [list [lindex $sel 0] [lindex $sel 3]]]
+    set astart(ncvtmp) [lindex $sel 4]
+    set astart(ncftmp) [lindex $sel 5]
+    set astart(pptmp) [lindex $sel 2]
+    set clsre [join [list "^" [lindex $sel 1] " "] ""]
+    set clidx [lsearch -regexp $clonestashlabellist $clsre]
+    if {$clidx == -1} {
+        set astart(sccltmp) "n/a"
+    } else {
+        set astart(sccltmp) [lindex $clonestashlabellist $clidx]
+    }
 }

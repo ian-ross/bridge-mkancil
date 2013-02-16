@@ -5,6 +5,8 @@ proc ostartwin {win} {
    set ostart(sctmp) ""
    set ostart(ncftmp) ""
    set ostart(ncvtmp) ""
+   set ostart(sccltmp) "n/a"
+   set ostart(pptmp) ""
 
    set ww0 $win.ww0
    frame $ww0 -bd 2
@@ -44,14 +46,15 @@ proc ostartwin {win} {
    set_filename $ww1.outfile "Enter output UM Ocean Start Dump file name: " ostart(file_out)
    spacer $ww1.spacer3
 
-   label $ww1.selectlabel -text "Dump file fields to modify:"
+   label $ww1.selectlabel -text "Dump file fields from NetCDF files:"
    pack $ww1.selectlabel -side top -fill both -expand yes
    tablelist::tablelist $ww1.mods \
-       -columns [list 0 "#" left 0 "Stash Name" left \
-                      0 "NC Variable" left 0 "NC File" left] \
+       -columns [list 4 "#" left 5 "Clone" left 5 "PP" left \
+                      0 "Stash Name" left 0 "NC Variable" left \
+                      0 "NC File" left] \
        -height 0 -width 10 -stretch all -selectmode single -activestyle none \
        -listvariable ostart(mods) -showarrow 0
-   for {set c 0} {$c < 4} {incr c} { $ww1.mods columnconfigure $c -editable no }
+   for {set c 0} {$c < 6} {incr c} { $ww1.mods columnconfigure $c -editable no }
    $ww1.mods columnconfigure 0 -sortmode integer
    bind $ww1.mods <<TablelistSelect>> "ostart_selection_change %W"
    pack $ww1.mods -side top -expand yes -fill both
@@ -77,14 +80,25 @@ proc ostartwin {win} {
    get_ostart_ncfilename $ww1.ncfile "NetCDF file name: " ostart(ncftmp) nc ostart_ncfile
    select_varname1 $ww1.varname "NetCDF variable name: " ostart(ncvtmp) ostart(ncftmp)
    spacer $ww1.spacer7
+   frame $ww1.stash2
+   pack $ww1.stash2 -side top -fill both -expand yes
+   label $ww1.stash2.label -text "Clone stash:"
+   combobox::combobox $ww1.stash2.stashcode -textvariable ostart(sccltmp) \
+                      -listvar clonestashlabellist \
+                      -width 5 -borderwidth 2 -elementborderwidth 2 \
+                      -highlightthickness 1 -editable no
+   pack $ww1.stash2.label -side left -fill none -expand no
+   pack $ww1.stash2.stashcode -side left -fill both -expand yes -anchor e
+   set_var $ww1.pp "PP code:" ostart(pptmp) 0 yes
+   spacer $ww1.spacer8
 
    select_window_dump $ww2.date1 $wh2 \
       "Use date from NetCDF file                            " \
       "Use date from UM start dump                          " \
       "Specify Ocean start dump date                   " ostart(timeusage1)
-   spacer $wh2.spacer8
-   set_dumpdate $wh2.date2 "Ocean start" ostart
    spacer $wh2.spacer9
+   set_dumpdate $wh2.date2 "Ocean start" ostart
+   spacer $wh2.spacerA
 
    create_win2 $ww3.bathycreate $wh3 "Modify Ocean Bathymetry? " ostart(bathy)
    get_filename $wh3.bathyfile "Bathymetry NetCDF file name: " \
@@ -93,13 +107,13 @@ proc ostartwin {win} {
        ostart(bathyncname) ostart(bathyfile)
    set_var2 $wh3.bathydepthmask "Bathymetry variable is depth mask" \
        ostart(bathydepthmask) "yes" 1 "no " 0
-   spacer $wh3.spacer10
+   spacer $wh3.spacerB
 
    create_win2 $ww4.islandcreate $wh4 "Modify Islands Data? " ostart(islandmod)
    set_var2 $wh4.islandtype "Replace or add islands? " ostart(islandtype) "Replace" 1 "Add    " 2
    get_filename $wh4.islandfile "Island input data file name: " \
        ostart(islandfile) "*"
-   spacer $wh4.spacer11
+   spacer $wh4.spacerC
 
 #  Pack hidden frames if required
 
@@ -111,8 +125,9 @@ proc ostartwin {win} {
 
 
 proc ostart_uminfile {win file} {
-    global stashlist stashlabellist ostart
+    global stashlist stashlabellist clonestashlabellist ostart
     if {$file == "" || ![file exists $file]} {
+        set clonestashlabellist ""
         set stashlabellist ""
         set ostart(mods) {}
     } else {
@@ -128,6 +143,12 @@ proc ostart_uminfile {win file} {
         set ostart(sctmp) ""
         set ostart(ncftmp) ""
         set ostart(ncvtmp) ""
+        set ostart(sccltmp) "n/a"
+        set ostart(pptmp) ""
+
+        # Add possible new stash codes
+        for {set i 331} {$i<=340} {incr i} { lappend stashlabellist $i }
+        for {set i 351} {$i<=354} {incr i} { lappend stashlabellist $i }
     }
 }
 
@@ -187,6 +208,7 @@ proc add_ostart_entry {win} {
     global ostart
     if {$ostart(sctmp)=="" || $ostart(ncftmp)=="" || $ostart(ncvtmp)==""} {return}
     set stashcode [lindex [split $ostart(sctmp)] 0]
+    set clstashcode [lindex [split $ostart(sccltmp)] 0]
     set stashname [string trim [string range $ostart(sctmp) [string wordend $ostart(sctmp) 0] end]]
     set ok 1
     foreach chk $ostart(mods) {
@@ -196,7 +218,9 @@ proc add_ostart_entry {win} {
         }
     }
     if {$ok} {
-        lappend ostart(mods) [list $stashcode $stashname $ostart(ncvtmp) $ostart(ncftmp)]
+        lappend ostart(mods) \
+            [list $stashcode $clstashcode $ostart(pptmp) $stashname \
+                 $ostart(ncvtmp) $ostart(ncftmp)]
     }
     $win sortbycolumn 0
 }
@@ -208,6 +232,7 @@ proc upd_ostart_entry {win} {
     if {[llength $selidx]==0} {return}
     if {$ostart(sctmp)=="" || $ostart(ncftmp)=="" || $ostart(ncvtmp)==""} {return}
     set scode [lindex [split $ostart(sctmp)] 0]
+    set clscode [lindex [split $ostart(sccltmp)] 0]
     set sname [string trim [string range $ostart(sctmp) [string wordend $ostart(sctmp) 0] end]]
     set ok 1
     set idx 0
@@ -221,7 +246,8 @@ proc upd_ostart_entry {win} {
         incr idx
     }
     if {$ok} {
-        set newent [list $scode $sname $ostart(ncvtmp) $ostart(ncftmp)]
+        set newent [list $scode $clscode $ostart(pptmp) \
+                        $sname $ostart(ncvtmp) $ostart(ncftmp)]
         set ostart(mods) [lreplace $ostart(mods) $selidx $selidx $newent]
         $win sortbycolumn 0
     }
@@ -233,13 +259,22 @@ proc del_ostart_entry {win} {
     set s [lindex [$win curselection] 0]
     set ostart(mods) [lreplace $ostart(mods) $s $s]
     $win sortbycolumn 0
+    ostart_selection_change $win
 }
 
 
 proc ostart_selection_change {win} {
-    global ostart
+    global ostart clonestashlabellist
     set sel [lindex $ostart(mods) [$win curselection]]
-    set ostart(sctmp) [join [lrange $sel 0 1]]
-    set ostart(ncvtmp) [lindex $sel 2]
-    set ostart(ncftmp) [lindex $sel 3]
+    set ostart(sctmp) [join [list [lindex $sel 0] [lindex $sel 3]]]
+    set ostart(ncvtmp) [lindex $sel 4]
+    set ostart(ncftmp) [lindex $sel 5]
+    set ostart(pptmp) [lindex $sel 2]
+    set clsre [join [list "^" [lindex $sel 1] " "] ""]
+    set clidx [lsearch -regexp $clonestashlabellist $clsre]
+    if {$clidx == -1} {
+        set ostart(sccltmp) "n/a"
+    } else {
+        set ostart(sccltmp) [lindex $clonestashlabellist $clidx]
+    }
 }
