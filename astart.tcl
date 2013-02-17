@@ -1,10 +1,11 @@
 proc astartwin {win} {
 
-   global astart astart_ppwin astart_clstashsel
+   global astart astart_ppwin astart_newstashwin astart_clstashsel
 
    set astart(sctmp) ""
    set astart(ncftmp) ""
    set astart(ncvtmp) ""
+   set astart(newsctmp) "n/a"
    set astart(sccltmp) "n/a"
    set astart(pptmp) "n/a"
 
@@ -46,7 +47,7 @@ proc astartwin {win} {
    label $ww1.selectlabel -text "Dump file fields from NetCDF files:"
    pack $ww1.selectlabel -side top -fill both -expand yes
    tablelist::tablelist $ww1.mods \
-       -columns [list 4 "#" left 5 "Clone" left 5 "PP" left \
+       -columns [list 0 "#" left 0 "Clone" left 0 "PP" left \
                       0 "Stash Name" left 0 "NC Variable" left \
                       0 "NC File" left] \
        -height 0 -width 10 -stretch all -selectmode single -activestyle none \
@@ -84,9 +85,10 @@ proc astartwin {win} {
    select_varname1 $ww1.varname "NetCDF variable name: " \
        astart(ncvtmp) astart(ncftmp)
    spacer $ww1.spacer7
+   set_var $ww1.newstash "New stashcode:" astart(newsctmp) 0 yes
    frame $ww1.stash2
    pack $ww1.stash2 -side top -fill both -expand yes
-   label $ww1.stash2.label -text "Clone stash:"
+   label $ww1.stash2.label -text "Clone stashcode:"
    combobox::combobox $ww1.stash2.stashcode -textvariable astart(sccltmp) \
                       -listvar clonestashlabellist \
                       -width 5 -borderwidth 2 -elementborderwidth 2 \
@@ -94,10 +96,12 @@ proc astartwin {win} {
    pack $ww1.stash2.label -side left -fill none -expand no
    pack $ww1.stash2.stashcode -side left -fill both -expand yes -anchor e
    set_var $ww1.pp "PP code:" astart(pptmp) 0 yes
+   set astart_newstashwin $ww1.newstash
    set astart_ppwin $ww1.pp
    set astart_clstashsel $ww1.stash2
    set_win_state $astart_clstashsel false
    set_win_state $astart_ppwin false
+   set_win_state $astart_newstashwin false
    spacer $ww1.spacer8
 
    select_window_dump $ww1.date1 $wh1 \
@@ -139,15 +143,14 @@ proc astart_uminfile {win file} {
         set astart(sctmp) ""
         set astart(ncftmp) ""
         set astart(ncvtmp) ""
+        set astart(newsctmp) "n/a"
         set astart(sccltmp) "n/a"
         set astart(pptmp) "n/a"
 
-        # Add possible new stash codes
+        # Add "New stash code entry"
         set origstashlabellist $stashlabellist
         set clonestashlabellist [list "n/a"]
-        for {set i 301} {$i<=340} {incr i} {
-            lappend stashlabellist "$i STASHCODE = $i (new)"
-        }
+        set stashlabellist [linsert $stashlabellist 0 "New stashcode..."]
     }
 }
 
@@ -204,55 +207,93 @@ proc astart_ncfile {win ncfile} {
 
 
 proc add_astart_entry {win} {
-    global astart
+    global astart stashlist
     if {$astart(sctmp)=="" || $astart(ncftmp)=="" || \
             $astart(ncvtmp)==""} {return}
     set stashcode [lindex [split $astart(sctmp)] 0]
     set clstashcode [lindex [split $astart(sccltmp)] 0]
     set stashname [string trim [string range $astart(sctmp) \
                                     [string wordend $astart(sctmp) 0] end]]
-    set ok 1
-    foreach chk $astart(mods) {
-        if {$stashcode==[lindex $chk 0]} {
-            errorbox "Stash code is already in use"
-            set ok 0
+    set newpp [string trim $astart(pptmp)]
+    set err ""
+    if {$stashcode == "New"} {
+        set newstash [string trim $astart(newsctmp)]
+        if {! [regexp {[0-9]+} $newstash]} {
+            set err "Invalid new stashcode"
+        } else {
+            if {! [regexp {[0-9]+} $newpp]} {
+                set err "Invalid new PP code"
+            } else {
+                if {[lsearch $stashlist $astart(newsctmp)] != -1} {
+                    set err "New stash code already exists in dump file"
+                } else {
+                    set stashcode $newstash
+                    set stashname "New field"
+                }
+            }
         }
     }
-    if {$ok} {
-        lappend astart(mods) \
-            [list $stashcode $clstashcode $astart(pptmp) $stashname \
-                 $astart(ncvtmp) $astart(ncftmp)]
+    foreach chk $astart(mods) {
+        if {$stashcode == [lindex $chk 0]} {
+            set err "Stash code is already in use"
+        }
     }
-    $win sortbycolumn 0
+    if {$err == ""} {
+        lappend astart(mods) \
+            [list $stashcode $clstashcode $newpp $stashname \
+                 $astart(ncvtmp) $astart(ncftmp)]
+        $win sortbycolumn 0
+    } else {
+        errorbox $err
+    }
 }
 
 
 proc upd_astart_entry {win} {
-    global astart
+    global astart stashlist
     set selidx [$win curselection]
     if {[llength $selidx]==0} {return}
     if {$astart(sctmp)=="" || $astart(ncftmp)=="" || \
             $astart(ncvtmp)==""} {return}
-    set scode [lindex [split $astart(sctmp)] 0]
-    set clscode [lindex [split $astart(sccltmp)] 0]
-    set sname [string trim [string range $astart(sctmp) \
-                                [string wordend $astart(sctmp) 0] end]]
-    set ok 1
+    set stashcode [lindex [split $astart(sctmp)] 0]
+    set clstashcode [lindex [split $astart(sccltmp)] 0]
+    set stashname [string trim [string range $astart(sctmp) \
+                                    [string wordend $astart(sctmp) 0] end]]
+    set newpp [string trim $astart(pptmp)]
+    set err ""
+    if {$stashcode == "New"} {
+        set newstash [string trim $astart(newsctmp)]
+        if {! [regexp {[0-9]+} $newstash]} {
+            set err "Invalid new stashcode"
+        } else {
+            if {! [regexp {[0-9]+} $newpp]} {
+                set err "Invalid new PP code"
+            } else {
+                if {[lsearch $stashlist $astart(newsctmp)] != -1} {
+                    set err "New stash code already exists in dump file"
+                } else {
+                    set stashcode $newstash
+                    set stashname "New field"
+                }
+            }
+        }
+    }
     set idx 0
     foreach chk $astart(mods) {
         if {$idx != $selidx} {
-            if {$scode==[lindex $chk 0]} {
-                errorbox "Stash code is already in use"
-                set ok 0
+            if {$stashcode == [lindex $chk 0]} {
+                set err "Stash code is already in use"
             }
         }
         incr idx
     }
-    if {$ok} {
-        set newent [list $scode $clscode $astart(pptmp) \
-                        $sname $astart(ncvtmp) $astart(ncftmp)]
+    if {$err == ""} {
+        set newent [list $stashcode $clstashcode $newpp \
+                        $stashname $astart(ncvtmp) $astart(ncftmp)]
         set astart(mods) [lreplace $astart(mods) $selidx $selidx $newent]
         $win sortbycolumn 0
+    } else {
+        errorbox $err
     }
 }
 
@@ -260,20 +301,32 @@ proc upd_astart_entry {win} {
 proc del_astart_entry {win} {
     global astart
     set s [lindex [$win curselection] 0]
+    $win selection clear 0 [$win size]
     set astart(mods) [lreplace $astart(mods) $s $s]
     $win sortbycolumn 0
-    astart_selection_change $win
+    set astart(sctmp) ""
+    set astart(ncftmp) ""
+    set astart(ncvtmp) ""
+    set astart(newsctmp) "n/a"
+    set astart(sccltmp) "n/a"
+    set astart(pptmp) "n/a"
 }
 
 
 proc astart_selection_change {win} {
-    global astart clonestashlabellist origstashlabellist
-    global astart_ppwin astart_clstashsel
+    global astart stashlist clonestashlabellist origstashlabellist
+    global astart_ppwin astart_newstashwin astart_clstashsel
     set sel [lindex $astart(mods) [$win curselection]]
-    set astart(sctmp) [join [list [lindex $sel 0] [lindex $sel 3]]]
+    if {[lsearch $stashlist [lindex $sel 0]] == -1} {
+        set astart(sctmp) "New stashcode..."
+        set astart(newsctmp) [lindex $sel 0]
+    } else {
+        set astart(sctmp) [join [list [lindex $sel 0] [lindex $sel 3]]]
+        set astart(newsctmp) "n/a"
+    }
     set astart(ncvtmp) [lindex $sel 4]
     set astart(ncftmp) [lindex $sel 5]
-    if {[regexp {\(new\)$} $astart(sctmp)]} {
+    if {$astart(sctmp) == "New stashcode..."} {
         set clonestashlabellist $origstashlabellist
         set clsre [join [list "^" [lindex $sel 1] " "] ""]
         set clidx [lsearch -regexp $clonestashlabellist $clsre]
@@ -285,31 +338,38 @@ proc astart_selection_change {win} {
         set astart(pptmp) [lindex $sel 2]
         set_win_state $astart_clstashsel true
         set_win_state $astart_ppwin true
+        set_win_state $astart_newstashwin true
     } else {
         set clonestashlabellist {"n/a"}
         set astart(sccltmp) "n/a"
+        set astart(newsctmp) "n/a"
         set astart(pptmp) "n/a"
         set_win_state $astart_clstashsel false
         set_win_state $astart_ppwin false
+        set_win_state $astart_newstashwin false
     }
 }
 
 
 proc astart_stashcode_selection_change {win} {
     global astart stashlabellist clonestashlabellist origstashlabellist
-    global astart_ppwin astart_clstashsel
+    global astart_ppwin astart_newstashwin astart_clstashsel
     set stashsel [lindex $stashlabellist [$win curselection]]
-    if {[regexp {\(new\)$} $stashsel]} {
+    if {[regexp {^New} $stashsel]} {
         set clonestashlabellist $origstashlabellist
         set astart(sccltmp) [lindex $clonestashlabellist 0]
+        set astart(newsctmp) ""
         set astart(pptmp) ""
         set_win_state $astart_clstashsel true
         set_win_state $astart_ppwin true
+        set_win_state $astart_newstashwin true
     } else {
         set clonestashlabellist {"n/a"}
+        set astart(newsctmp) "n/a"
         set astart(sccltmp) "n/a"
         set astart(pptmp) "n/a"
         set_win_state $astart_clstashsel false
         set_win_state $astart_ppwin false
+        set_win_state $astart_newstashwin false
     }
 }
