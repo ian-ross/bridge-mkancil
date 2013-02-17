@@ -425,7 +425,14 @@ do i = 1, nitem
               ' does not exist in input dump file'
          stop
       end if
-      extralookup = extralookup + count(in_stash_code == cloneitemid(i))
+      j = 1
+      do while (in_stash_code(j) /= cloneitemid(i))
+         j = j + 1
+      end do
+      do while (in_stash_code(j) == cloneitemid(i))
+         extralookup = extralookup + 1
+         j = j + 1
+      end do
    end if
 end do
 
@@ -875,6 +882,7 @@ if (lnewlsm) then
 endif
 deallocate (data_pack,data_type,data_comp,stash_code)
 deallocate (data_size_i,data_size_o,data_pos_i,data_pos_o)
+deallocate (ilookup, rlookup)
 if (max_isize > 0) deallocate(idata)
 if (max_rsize > 0) deallocate(rdata)
 if (allocated(rtmp)) deallocate(rtmp)

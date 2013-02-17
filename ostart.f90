@@ -44,12 +44,9 @@ real(rtype), dimension(:), allocatable :: rhead
 integer(itype) imodarr(100)
 real(rtype) rmodarr(100)
 integer(itype), dimension(:), allocatable :: data_pack,data_type
-integer(itype), dimension(:), allocatable :: stash_code
 integer(itype), dimension(:), allocatable :: data_size_i,data_size_o
 integer(otype), dimension(:), allocatable :: data_pos_i,data_pos_o
 integer(otype) data_pos0,data_pos1
-integer(itype) ilookup(len_pphead_int)
-real(rtype) rlookup(len_pphead_real)
 integer data_size0,data_size1,ic
 integer(itype) n2
 integer(itype), dimension(:), allocatable :: idata
@@ -64,6 +61,15 @@ real(rtype), dimension(:), allocatable :: oceanlevels
 real(rtype) rmdi_nc
 integer imdi_nc
 
+integer nlookup
+integer(itype), dimension(:,:), allocatable :: in_ilookup, ilookup
+real(rtype), dimension(:,:), allocatable :: in_rlookup, rlookup
+integer(itype) , dimension(:), allocatable :: in_stash_code, stash_code
+integer :: extralookup, dataoff, ddatasize
+integer sncfileid(nitem+1), sitemid(nitem+1)
+integer scloneitemid(nitem+1), snewppcode(nitem+1)
+integer :: j, k, from, to, copyfrom, istash, nextcl
+integer, dimension(:), allocatable :: ireplace
 
 write (*,*) 'Writing Ocean start dump ', trim(umfileout)
 
@@ -193,7 +199,6 @@ if (itimeusage1 == 0) then
 !  Get variable name from standard name
 
    if (lusestdname) then
-
       istashcode = itemid(1)
       write(*,*)'istashcode = ',istashcode,' from item 1'
 
@@ -376,92 +381,248 @@ endif
 
 deallocate (ihead,rhead)
 
-allocate(data_type(fixhdi(152)))
-allocate(data_pack(fixhdi(152)))
-allocate(stash_code(fixhdi(152)))
-allocate(data_size_i(fixhdi(152)))
-allocate(data_size_o(fixhdi(152)))
-allocate(data_pos_i(fixhdi(152)))
-allocate(data_pos_o(fixhdi(152)))
+nlookup = fixhdi(152)
+allocate(in_ilookup(nlookup, len_pphead_int))
+allocate(in_rlookup(nlookup, len_pphead_real))
+allocate(in_stash_code(nlookup))
 
 inewpos = fixhdi(150)
 onewpos = fixhdo(150)
 data_pos0 = fixhdo(160) - 1
 data_pos1 = fixhdi(160) - 1
 
+!  Read in PP headers
 call skip(ichan,curpos,inewpos)
 call skip(ochan,curpos,onewpos)
-do i=1,fixhdi(152)
+do i=1,nlookup
+   call rdblki(in_ilookup(i,:),len_pphead_int, &
+        len_pphead_int,ichan,inewpos,eof)
+   call rdblkr(in_rlookup(i,:),len_pphead_real, &
+        len_pphead_real,ichan,inewpos,eof)
+   in_stash_code(i) = in_ilookup(i,42)
+end do
 
-!  Read in PP header
+! Sort input NetCDF replacement data by stash code.
+sncfileid(1) = ncfileid(1)
+sitemid(1) = itemid(1)
+scloneitemid(1) = cloneitemid(1)
+snewppcode(1) = newppcode(1)
+do i = 2, nitem
+   do j = 1, i
+      if (j == i) exit
+      if (itemid(i) < sitemid(j)) then
+         do k = i-1, j, -1
+            sncfileid(k+1) = ncfileid(k)
+            sitemid(k+1) = itemid(k)
+            scloneitemid(k+1) = cloneitemid(k)
+            snewppcode(k+1) = newppcode(k)
+         end do
+         exit
+      end if
+   end do
+   sncfileid(j) = ncfileid(i)
+   sitemid(j) = itemid(i)
+   scloneitemid(j) = cloneitemid(i)
+   snewppcode(j) = newppcode(i)
+end do
 
-   call rdblki(ilookup,len_pphead_int,len_pphead_int,ichan,inewpos,eof)
-   call rdblkr(rlookup,len_pphead_real,len_pphead_real,ichan,inewpos,eof)
-
-   stash_code(i) = ilookup(42)
-   if (ilookup(21) /= 0 .and. ilookup(21) /= 2) then
-      write (*,*) 'ERROR: only LBPACK=0 or 2 supported for ocean dump files'
-      stop
-   endif
-   if (intype(3:3) == '4') then
-      data_pack(i) = 0
+! Check extra stash codes to be inserted.
+extralookup = 0
+do i = 1, nitem
+   if (any(in_stash_code == itemid(i))) then
+      if (cloneitemid(i) /= -1 .OR. newppcode(i) /= -1) then
+         write (*,*) 'Replacement for stash ', itemid(i), &
+              ' cannot have clone stash or PP code'
+         stop
+      end if
    else
-      data_pack(i) = ilookup(21)
-   endif
-   data_pos_i(i) = ilookup(29)
-   if (data_pack(i) == 2 .and. itype == i64) then
-      data_size_i(i) = (ilookup(15)+1)/2
-   else
-      data_size_i(i) = ilookup(15)
-   endif
-   data_type(i) = ilookup(39)
+      if (cloneitemid(i) == -1 .OR. newppcode(i) == -1) then
+         write (*,*) 'New item for stash ', itemid(i), &
+              ' must have clone stash and PP code'
+         stop
+      end if
+      if (.not. any(in_stash_code == cloneitemid(i))) then
+         write (*,*) 'Clone stash ', cloneitemid(i), &
+              ' does not exist in input dump file'
+         stop
+      end if
+      j = 1
+      do while (in_stash_code(j) /= cloneitemid(i))
+         j = j + 1
+      end do
+      do while (in_stash_code(j) == cloneitemid(i))
+         extralookup = extralookup + 1
+         j = j + 1
+      end do
+   end if
+end do
+
+! Set up new lookup table data with data replacement indicators.
+write (*,*) 'extralookup = ', extralookup
+fixhdo(152) = fixhdo(152) + extralookup
+dataoff = extralookup * fixhdi(151)
+fixhdo(160) = fixhdo(160) + dataoff
+allocate(ilookup(nlookup + extralookup, len_pphead_int))
+allocate(rlookup(nlookup + extralookup, len_pphead_real))
+allocate(data_pos_i(nlookup + extralookup))
+allocate(data_size_i(nlookup + extralookup))
+allocate(data_type(nlookup + extralookup))
+allocate(data_pack(nlookup + extralookup))
+nextcl = 1 ; from = 1 ; to = 1 ; ddatasize = 0
+write (*,*) 'nlookup=', nlookup
+write (*,*) 'nlookup+extralookup=', nlookup+extralookup
+
+do while (to <= nlookup + extralookup)
+   write (*,*) 'Start: to=', to
+   ! Find first new stash code entry.
+   do while (nextcl <= nitem .and. scloneitemid(nextcl) == -1)
+      write (*,*) 'Looking: nextcl=', nextcl
+      nextcl = nextcl + 1
+   end do
+   write (*,*) 'Entry: nextcl=', nextcl
+   if (nextcl <= nitem) write(*,*) '  scloneitemid=', scloneitemid(nextcl)
+
+   ! Copy entries until the next new one.
+   write(*,*) 'Copy start: from=', from, ' to=', to
+   do while (from <= nlookup .and. &
+        (nextcl > nitem .or. in_stash_code(from) <  sitemid(nextcl)))
+      ilookup(to, :) = in_ilookup(from, :)
+      rlookup(to, :) = in_rlookup(from, :)
+      if (ilookup(to, 21) /= 0 .and. ilookup(to, 21) /= 2) then
+         write (*,*) 'ERROR: only LBPACK=0 or 2 supported for ocean dump files'
+         stop
+      endif
+      if (intype(3:3) == '4') then
+         data_pack(to) = 0
+      else
+         data_pack(to) = ilookup(to, 21)
+      endif
+      if (data_pack(to) == 2 .and. itype == i64) then
+         data_size_i(to) = (ilookup(to, 15) + 1) / 2
+      else
+         data_size_i(to) = ilookup(to, 15)
+      endif
+      data_type(to) = ilookup(to, 39)
+      data_pos_i(to) = ilookup(to, 29)
+      ilookup(to, 29) = ilookup(to, 29) + dataoff + ddatasize
+      to = to + 1
+      from = from + 1
+   end do
+   write(*,*) 'Copy end: from=', from, ' to=', to
+
+   ! Deal with new entry: copy from entry to clone
+   if (nextcl <= nitem) then
+      do copyfrom = 1, nlookup
+         if (in_stash_code(copyfrom) == scloneitemid(nextcl)) exit
+      end do
+      write (*,*) 'New entry start: copyfrom=', copyfrom, ' to=', to
+      do while (copyfrom <= nlookup .and. &
+           in_stash_code(copyfrom) == scloneitemid(nextcl))
+         ilookup(to, :) = in_ilookup(copyfrom, :)
+         rlookup(to, :) = in_rlookup(copyfrom, :)
+         if (ilookup(to, 21) /= 0 .and. ilookup(to, 21) /= 2) then
+            write (*,*) &
+                 'ERROR: only LBPACK=0 or 2 supported for ocean dump files'
+            stop
+         endif
+         if (intype(3:3) == '4') then
+            data_pack(to) = 0
+         else
+            data_pack(to) = ilookup(to, 21)
+         endif
+         if (data_pack(to) == 2 .and. itype == i64) then
+            data_size_i(to) = (ilookup(to, 15) + 1) / 2
+         else
+            data_size_i(to) = ilookup(to, 15)
+         endif
+         data_type(to) = ilookup(to, 39)
+         data_pos_i(to) = imdi
+         ilookup(to, 29) = ilookup(to-1,29) + data_size_i(to-1)
+         ddatasize = ddatasize + data_size_i(to)
+         ilookup(to, 42) = sitemid(nextcl)
+         ilookup(to, 23) = snewppcode(nextcl)
+         to = to + 1
+         copyfrom = copyfrom + 1
+      end do
+      write (*,*) 'New entry end: copyfrom=', copyfrom, ' to=', to
+      nextcl = nextcl + 1
+   end if
+end do
+fixhdo(161) = fixhdo(161) + ddatasize
+
+! Clean up temporary input tables.
+deallocate(in_ilookup)
+deallocate(in_rlookup)
+deallocate(in_stash_code)
+nlookup = nlookup + extralookup
+
+! Set up information about replacement of input variables with NetCDF
+! data.
+allocate(ireplace(nlookup))
+ireplace = -1
+istash = 1
+do i = 1, nlookup
+   if (sitemid(istash) < ilookup(i, 42)) istash = istash + 1
+   if (ilookup(i, 42) == sitemid(istash)) ireplace(i) = istash
+end do
+
+! Allocate working arrays with new size (includes entries for all new
+! fields to be created from NetCDF data).
+allocate(stash_code(nlookup))
+allocate(data_pos_o(nlookup))
+allocate(data_size_o(nlookup))
+
+do i = 1, nlookup
+   stash_code(i) = ilookup(i,42)
+   write (*,*) i, 'sc=', stash_code(i), ' dsi=', &
+        data_size_i(i), ' dpi=', data_pos_i(i)
 
 !  Modify PP header
 
    if (luseconfig) then
-      ic = mod(ilookup(13),10)
+      ic = mod(ilookup(i,13),10)
       if ((ic == 1 .or. ic == 2) .and. ic /= ical) then
-         ilookup(13) = (ic/10)*10 + ical
+         ilookup(i,13) = (ic/10)*10 + ical
       endif
       if (iversion >= 503) then
-         ilookup(38) = iversion*10000+1111
+         ilookup(i,38) = iversion*10000+1111
       endif
    endif
 
    ! Set date and time pp header values
 
    if (itimeusage1 == 1 .or. itimeusage1 == 0) then
-      ic = mod(ilookup(13),10)
-      ilookup(1:5) = istartdate(1:5)
-      ilookup(6) = get_daynum(istartdate(1),istartdate(2),istartdate(3),ic)
-      ilookup(7:11) = istartdate(1:5)
-      ilookup(12) = get_daynum(istartdate(1),istartdate(2),istartdate(3),ic)
-      ilookup(13) = ic
+      ic = mod(ilookup(i,13),10)
+      ilookup(i,1:5) = istartdate(1:5)
+      ilookup(i,6) = get_daynum(istartdate(1),istartdate(2),istartdate(3),ic)
+      ilookup(i,7:11) = istartdate(1:5)
+      ilookup(i,12) = get_daynum(istartdate(1),istartdate(2),istartdate(3),ic)
+      ilookup(i,13) = ic
    endif
 
    if (lwfio) then
-      data_size0 = ilookup(15)
+      data_size0 = ilookup(i,15)
       if (data_pack(i) == 2 .and. outtype(3:3) == '8') &
          data_size0 = (data_size0+1)/2
       nrec = data_size0 / iwfio_size
       if (mod(data_size0,iwfio_size) /= 0) nrec = nrec + 1
       data_size0 = nrec*iwfio_size
 
-      ilookup(29) = data_pos0
-      ilookup(30) = data_size0
+      ilookup(i,29) = data_pos0
+      ilookup(i,30) = data_size0
       data_pos0 = data_pos0 + data_size0
    else if (luseconfig) then
-      ilookup(29) = 0
-      ilookup(30) = 0
+      ilookup(i,29) = 0
+      ilookup(i,30) = 0
    endif
 
-   data_pos_o(i) = ilookup(29)
+   data_pos_o(i) = ilookup(i,29)
    if ((.not. luseconfig .or. lwfio) .and. &
-       ilookup(30) /= 0 .and. ilookup(30) /= IMDI) then
-      if (ilookup(21) == 2 .and. itype == i32) then
-         data_size_o(i) = 2*ilookup(30)
+       ilookup(i,30) /= 0 .and. ilookup(i,30) /= IMDI) then
+      if (ilookup(i,21) == 2 .and. itype == i32) then
+         data_size_o(i) = 2*ilookup(i,30)
       else
-         data_size_o(i) = ilookup(30)
+         data_size_o(i) = ilookup(i,30)
       endif
    else
       data_size_o(i) = data_size_i(i)
@@ -474,12 +635,21 @@ do i=1,fixhdi(152)
    else
       if (data_size_o(i) > max_isize) max_isize = data_size_o(i)
    endif
+end do
 
-!  Write out PP header
+! Rewrite the fixed header if the data size has changed.
+if (extralookup > 0) then
+   onewpos = 1
+   call skip(ochan,curpos,onewpos)
+   call wrtblki(fixhdo,len_fixhd,len_fixhd,ochan,onewpos)
+end if
 
-   call wrtblki(ilookup,len_pphead_int,len_pphead_int,ochan,onewpos)
-   call wrtblkr(rlookup,len_pphead_real,len_pphead_real,ochan,onewpos)
-
+! Write out PP header
+onewpos = fixhdo(150)
+call skip(ochan,curpos,onewpos)
+do i = 1, nlookup
+   call wrtblki(ilookup(i,:),len_pphead_int,len_pphead_int,ochan,onewpos)
+   call wrtblkr(rlookup(i,:),len_pphead_real,len_pphead_real,ochan,onewpos)
 enddo
 
 if (luseconfig .and. lwfio .and. iwfio_size > 1) then
@@ -505,9 +675,9 @@ lreplace = .false.
 call skip(ichan,curpos,inewpos)
 call skip(ochan,curpos,onewpos)
 
-do i=1,fixhdi(152)
+do i=1,nlookup
 
-   lreplace = lreplace .or. (iitem <= nitem .and. stash_code(i) == itemid(iitem))
+   lreplace = (ireplace(i) /= -1)
 
    if (lreplace) then
 
@@ -627,6 +797,7 @@ endif
 
 deallocate (data_pack,data_type,stash_code)
 deallocate (data_size_i,data_size_o,data_pos_i,data_pos_o)
+deallocate (ilookup, rlookup)
 if (max_isize > 0) deallocate(idata)
 if (max_rsize > 0) deallocate(rdata)
 if (allocated(rtmp)) deallocate(rtmp)
