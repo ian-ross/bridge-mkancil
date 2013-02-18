@@ -14,6 +14,7 @@ use constants
 use parameters
 use config
 use types
+use stashlevels
 
 implicit none
 
@@ -39,7 +40,7 @@ character(max_stdname_size) stdname
 character(max_varname_size) varname
 integer get_daynum,date_time(8)
 integer modidx(100),ihead_dim,rhead_dim
-integer(itype), dimension(:), allocatable :: ihead
+integer(itype), dimension(:), allocatable :: ihead,intconsts
 real(rtype), dimension(:), allocatable :: rhead
 integer(itype) imodarr(100)
 real(rtype) rmodarr(100)
@@ -70,6 +71,7 @@ integer sncfileid(nitem+1), sitemid(nitem+1)
 integer scloneitemid(nitem+1), snewppcode(nitem+1)
 integer :: j, k, from, to, copyfrom, istash, nextcl
 integer, dimension(:), allocatable :: ireplace
+integer :: stashl, countl
 
 write (*,*) 'Writing Ocean start dump ', trim(umfileout)
 
@@ -251,6 +253,7 @@ modidx(1) = -1
 ! Find largest integer and real header dimension
 
 ihead_dim = fixhdi(101)
+allocate(intconsts(ihead_dim))
 if (fixhdi(141) > ihead_dim) ihead_dim = fixhdi(141)
 if (fixhdi(143) > ihead_dim) ihead_dim = fixhdi(143)
 if (fixhdi(145) > ihead_dim) ihead_dim = fixhdi(145)
@@ -279,7 +282,7 @@ if (fixhdi(101) > 0) then
    inewpos = fixhdi(100)
    onewpos = fixhdo(100)
    call readwrite_head_i(ichan,ochan,inewpos,onewpos, &
-                         ihead,fixhdi(101),imodarr,modidx,ierr)
+                         intconsts,fixhdi(101),imodarr,modidx,ierr)
 endif
 
 if (fixhdi(106) > 0) then
@@ -450,10 +453,14 @@ do i = 1, nitem
       do while (in_stash_code(j) /= cloneitemid(i))
          j = j + 1
       end do
+      stashl = levels_from_stash(in_ilookup(i,:), fixhdi, intconsts)
+      countl = 0
       do while (in_stash_code(j) == cloneitemid(i))
-         extralookup = extralookup + 1
+         countl = countl + 1
          j = j + 1
       end do
+      write (*,*) 'stashl = ', stashl, '  countl = ', countl
+      extralookup = extralookup + min(stashl, countl)
    end if
 end do
 
@@ -797,7 +804,7 @@ endif
 
 deallocate (data_pack,data_type,stash_code)
 deallocate (data_size_i,data_size_o,data_pos_i,data_pos_o)
-deallocate (ilookup, rlookup)
+deallocate (ilookup, rlookup, intconsts)
 if (max_isize > 0) deallocate(idata)
 if (max_rsize > 0) deallocate(rdata)
 if (allocated(rtmp)) deallocate(rtmp)

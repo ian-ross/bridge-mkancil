@@ -373,3 +373,89 @@ enddo
 end subroutine upcase
 
 end module utils
+
+
+!==============================================================================!
+
+module stashlevels
+
+contains
+
+function levels_from_stash(lookup, fixhd, intconsts)
+
+use getkind
+use parameters
+
+implicit none
+
+integer(itype), dimension(len_fixhd) :: fixhd
+integer(itype), dimension(:) :: lookup
+integer(itype), dimension(:) :: intconsts
+integer :: levels_from_stash
+
+integer(itype) :: modeltype, leveltype
+
+modeltype = fixhd(2)
+leveltype = lookup(26)
+
+levels_from_stash = -1
+
+if (modeltype == 1) then
+   ! Atmosphere model
+   select case (leveltype)
+   case (0, 1, 5, 128, 129, 130, 133, 142, 143, 275)
+      ! Single level
+      levels_from_stash = 1
+
+   case (9)
+      ! Model levels
+      levels_from_stash = intconsts(8)
+
+   case (6)
+      ! Model soil levels
+      levels_from_stash = intconsts(10)
+
+   case (8, 19)
+      ! Pressure levels: these are used for interpolation of model
+      ! output from model levels to standard pressure levels.  It
+      ! doesn't make sense to try to use these things for initialising
+      ! the model.
+      write (*,*) 'Pressure levels in levels_from_stash: not allowed...'
+      stop
+
+   case (30, 82, 126, 131, 132, 134, 135, 136, 137, 138, 190, &
+        198, 199, 1534, 1535, 1536, 1537, 1538, 1539, 1540)
+      write (*,*) 'WARNING: "exotic" level type code ', leveltype, &
+           ' in levels_from_stash (treating as single level)'
+      levels_from_stash = 1
+
+   case (189)
+      write (*,*) 'WARNING: "exotic" level type code ', leveltype, &
+           ' in levels_from_stash (treating as model levels)'
+      levels_from_stash = intconsts(8)
+   end select
+else if (modeltype == 2) then
+   ! Ocean model
+   select case (leveltype)
+   case (0, 129)
+      ! Single level
+      levels_from_stash = 1
+   case (2)
+      ! Model tracer levels
+      levels_from_stash = intconsts(8)
+   case default
+      write (*,*) 'Unknown level type code ', leveltype, ' for ocean model'
+   end select
+else
+   write (*,*) 'Unknown model type ', modeltype, ' in levels_from_stash'
+   stop
+end if
+
+if (levels_from_stash == -1) then
+   write (*,*) 'Unknown level type ', leveltype, ' in levels_from_stash'
+   stop
+end if
+
+end function levels_from_stash
+
+end module stashlevels

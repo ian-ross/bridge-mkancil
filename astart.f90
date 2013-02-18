@@ -13,6 +13,7 @@ use constants
 use parameters
 use config
 use types
+use stashlevels
 
 implicit none
 
@@ -37,7 +38,7 @@ integer header_size,nlandpts,nlandpts_new,ic,ipack_n2,ipack_n3
 integer max_isize,max_rsize,iwfio_size_save,data_size0,data_size1,mask_size
 integer date_time(8),get_daynum,imask_field
 integer num_unres_pts,rem_unres_pts,rem_unres_pts_prev,max_search,ndim,max_count
-integer(itype) , dimension(:), allocatable :: ihead,idata
+integer(itype) , dimension(:), allocatable :: ihead,idata,intconsts
 integer(itype) , dimension(:), allocatable :: data_pack,data_type,data_comp
 integer(itype) , dimension(:), allocatable :: data_size_i,data_size_o
 integer , dimension(:,:), allocatable :: index
@@ -60,6 +61,7 @@ integer sncfileid(nitem+1), sitemid(nitem+1)
 integer scloneitemid(nitem+1), snewppcode(nitem+1)
 integer :: j, k, from, to, copyfrom, istash, nextcl
 integer, dimension(:), allocatable :: ireplace
+integer :: stashl, countl
 
 write(*,*)'Writing Atmosphere start dump ',trim(umfileout)
 
@@ -245,6 +247,7 @@ modidx(1) = -1
 ! Find largest integer and real header dimension
 
 ihead_dim = fixhd(101)
+allocate(intconsts(ihead_dim))
 if (fixhd(141) > ihead_dim) ihead_dim = fixhd(141)
 if (fixhd(143) > ihead_dim) ihead_dim = fixhd(143)
 if (fixhd(145) > ihead_dim) ihead_dim = fixhd(145)
@@ -278,12 +281,12 @@ if (fixhd(101) > 0) then
       modidx(2) = -1
    endif
    call readwrite_head_i(ichan,ochan,inewpos,onewpos, &
-                         ihead,fixhd(101),imodarr,modidx,ierr)
+                         intconsts,fixhd(101),imodarr,modidx,ierr)
    if (lnewlsm) then
       nlandpts = imodarr(1)
       modidx(1) = -1
    else
-      nlandpts = ihead(25)
+      nlandpts = intconsts(25)
    endif
 endif
 
@@ -429,10 +432,14 @@ do i = 1, nitem
       do while (in_stash_code(j) /= cloneitemid(i))
          j = j + 1
       end do
+      stashl = levels_from_stash(in_ilookup(i,:), fixhd, intconsts)
+      countl = 0
       do while (in_stash_code(j) == cloneitemid(i))
-         extralookup = extralookup + 1
+         countl = countl + 1
          j = j + 1
       end do
+      write (*,*) 'stashl = ', stashl, '  countl = ', countl
+      extralookup = extralookup + min(stashl, countl)
    end if
 end do
 
@@ -534,8 +541,6 @@ allocate(data_size_o(nlookup))
 
 do i = 1, nlookup
    stash_code(i) = ilookup(i,42)
-   write (*,*) i, 'sc=', stash_code(i), ' dsi=', &
-        data_size_i(i), ' dpi=', data_pos_i(i)
 
 !  Get land/sea mask data from dump if needed
 
@@ -882,7 +887,7 @@ if (lnewlsm) then
 endif
 deallocate (data_pack,data_type,data_comp,stash_code)
 deallocate (data_size_i,data_size_o,data_pos_i,data_pos_o)
-deallocate (ilookup, rlookup)
+deallocate (ilookup, rlookup,intconsts)
 if (max_isize > 0) deallocate(idata)
 if (max_rsize > 0) deallocate(rdata)
 if (allocated(rtmp)) deallocate(rtmp)
