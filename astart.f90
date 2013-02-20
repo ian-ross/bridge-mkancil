@@ -62,6 +62,8 @@ integer scloneitemid(nitem+1), snewppcode(nitem+1)
 integer :: j, k, from, to, copyfrom, istash, nextcl
 integer, dimension(:), allocatable :: ireplace
 integer :: stashl, countl
+real(rtype) rmdi_nc
+integer :: imdi_nc
 
 write(*,*)'Writing Atmosphere start dump ',trim(umfileout)
 
@@ -788,11 +790,15 @@ do i=1,nlookup
          call get_ncfield_r(ncid(ncfileid(iitem)),varname,ilev,model, &
                             itimeusage1,itimeusage2,istartdate, &
                             rdata,data_size_i(i))
+         call get_ncmdi_r(varname,ncid(ncfileid(iitem)),rmdi_nc)
+         where (rdata == rmdi_nc) rdata = rmdi
       else
          idata = 0
          call get_ncfield_i(ncid(ncfileid(iitem)),varname,ilev,model, &
                             itimeusage1,itimeusage2,istartdate, &
                             idata,data_size_i(i))
+         call get_ncmdi_i(varname,ncid(ncfileid(iitem)),imdi_nc)
+         where (idata == imdi_nc) idata = imdi
       endif
 
       if (i == nlookup) then
