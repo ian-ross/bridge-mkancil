@@ -64,6 +64,7 @@ integer, dimension(:), allocatable :: ireplace
 integer :: stashl, countl
 real(rtype) rmdi_nc
 integer :: imdi_nc
+integer, dimension(:), allocatable :: copylevels
 
 write(*,*)'Writing Atmosphere start dump ',trim(umfileout)
 
@@ -412,6 +413,7 @@ end do
 
 ! Check extra stash codes to be inserted.
 extralookup = 0
+allocate(copylevels(nitem))
 do i = 1, nitem
    if (any(in_stash_code == itemid(i))) then
       if (cloneitemid(i) /= -1 .OR. newppcode(i) /= -1) then
@@ -441,7 +443,8 @@ do i = 1, nitem
          j = j + 1
       end do
       write (*,*) 'stashl = ', stashl, '  countl = ', countl
-      extralookup = extralookup + min(stashl, countl)
+      copylevels(i) = min(stashl, countl)
+      extralookup = extralookup + copylevels(i)
    end if
 end do
 
@@ -490,8 +493,7 @@ do while (to <= nlookup + extralookup)
       do copyfrom = 1, nlookup
          if (in_stash_code(copyfrom) == scloneitemid(nextcl)) exit
       end do
-      do while (copyfrom <= nlookup .and. &
-           in_stash_code(copyfrom) == scloneitemid(nextcl))
+      do i = 1, copylevels(nextcl)
          ilookup(to, :) = in_ilookup(copyfrom, :)
          rlookup(to, :) = in_rlookup(copyfrom, :)
          if (intype(3:3) == '4') then
@@ -516,6 +518,7 @@ do while (to <= nlookup + extralookup)
       nextcl = nextcl + 1
    end if
 end do
+deallocate(copylevels)
 fixhd(161) = fixhd(161) + ddatasize
 
 ! Clean up temporary input tables.
@@ -735,6 +738,10 @@ lreplace = .false.
 
 call skip(ichan,curpos,inewpos)
 call skip(ochan,curpos,onewpos)
+
+do i=1,nlookup
+   write (*,*) i, stash_code(i), data_pos_i(i), data_size_i(i)
+end do
 
 do i=1,nlookup
 

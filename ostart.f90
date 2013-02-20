@@ -61,6 +61,7 @@ integer noceanlevels
 real(rtype), dimension(:), allocatable :: oceanlevels
 real(rtype) rmdi_nc
 integer imdi_nc
+integer, dimension(:), allocatable :: copylevels
 
 integer nlookup
 integer(itype), dimension(:,:), allocatable :: in_ilookup, ilookup
@@ -431,6 +432,7 @@ end do
 
 ! Check extra stash codes to be inserted.
 extralookup = 0
+allocate(copylevels(nitem))
 do i = 1, nitem
    if (any(in_stash_code == itemid(i))) then
       if (cloneitemid(i) /= -1 .OR. newppcode(i) /= -1) then
@@ -460,7 +462,8 @@ do i = 1, nitem
          j = j + 1
       end do
       write (*,*) 'stashl = ', stashl, '  countl = ', countl
-      extralookup = extralookup + min(stashl, countl)
+      copylevels(i) = min(stashl, countl)
+      extralookup = extralookup + copylevels(i)
    end if
 end do
 
@@ -523,8 +526,7 @@ do while (to <= nlookup + extralookup)
          if (in_stash_code(copyfrom) == scloneitemid(nextcl)) exit
       end do
       write (*,*) 'New entry start: copyfrom=', copyfrom, ' to=', to
-      do while (copyfrom <= nlookup .and. &
-           in_stash_code(copyfrom) == scloneitemid(nextcl))
+      do i = 1, copylevels(nextcl)
          ilookup(to, :) = in_ilookup(copyfrom, :)
          rlookup(to, :) = in_rlookup(copyfrom, :)
          if (ilookup(to, 21) /= 0 .and. ilookup(to, 21) /= 2) then
@@ -555,6 +557,7 @@ do while (to <= nlookup + extralookup)
       nextcl = nextcl + 1
    end if
 end do
+deallocate(copylevels)
 fixhdo(161) = fixhdo(161) + ddatasize
 
 ! Clean up temporary input tables.
