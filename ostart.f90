@@ -581,8 +581,6 @@ allocate(data_size_o(nlookup))
 
 do i = 1, nlookup
    stash_code(i) = ilookup(i,42)
-   write (*,*) i, 'sc=', stash_code(i), ' dsi=', &
-        data_size_i(i), ' dpi=', data_pos_i(i)
 
 !  Modify PP header
 
