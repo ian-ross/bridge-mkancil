@@ -455,7 +455,7 @@ do i = 1, nitem
       do while (in_stash_code(j) /= cloneitemid(i))
          j = j + 1
       end do
-      stashl = levels_from_stash(in_ilookup(i,:), fixhdi, intconsts)
+      stashl = levels_from_stash(in_ilookup(j,:), fixhdi, intconsts)
       countl = 0
       do while (in_stash_code(j) == cloneitemid(i))
          countl = countl + 1

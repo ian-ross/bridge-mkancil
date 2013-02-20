@@ -436,7 +436,7 @@ do i = 1, nitem
       do while (in_stash_code(j) /= cloneitemid(i))
          j = j + 1
       end do
-      stashl = levels_from_stash(in_ilookup(i,:), fixhd, intconsts)
+      stashl = levels_from_stash(in_ilookup(j,:), fixhd, intconsts)
       countl = 0
       do while (in_stash_code(j) == cloneitemid(i))
          countl = countl + 1
@@ -738,10 +738,6 @@ lreplace = .false.
 
 call skip(ichan,curpos,inewpos)
 call skip(ochan,curpos,onewpos)
-
-do i=1,nlookup
-   write (*,*) i, stash_code(i), data_pos_i(i), data_size_i(i)
-end do
 
 do i=1,nlookup
 
