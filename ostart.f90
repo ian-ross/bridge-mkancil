@@ -284,14 +284,14 @@ allocate (rhead(rhead_dim))
 
 ! Read/write headers
 
-if (fixhdi(101) > 0) then
+if (has_data(fixhdi, 100)) then
    inewpos = fixhdi(100)
    onewpos = fixhdo(100)
    call readwrite_head_i(ichan,ochan,inewpos,onewpos, &
                          intconsts,fixhdi(101),imodarr,modidx,ierr)
 endif
 
-if (fixhdi(106) > 0) then
+if (has_data(fixhdi, 105)) then
    inewpos = fixhdi(105)
    onewpos = fixhdo(105)
    call readwrite_head_r(ichan,ochan,inewpos,onewpos, &
@@ -299,7 +299,7 @@ if (fixhdi(106) > 0) then
 endif
 
 lgotoceanlevels = .FALSE.
-if (fixhdi(111) > 0) then
+if (has_data(fixhdi, 110)) then
    inewpos = fixhdi(110)
    onewpos = fixhdo(110)
    lgotoceanlevels = .TRUE.
@@ -313,21 +313,21 @@ if (fixhdi(111) > 0) then
    end do
 endif
 
-if (fixhdi(116) > 0) then
+if (has_data(fixhdi, 115)) then
    inewpos = fixhdi(115)
    onewpos = fixhdo(115)
    call readwrite_head_r(ichan,ochan,inewpos,onewpos, &
                          rhead,fixhdi(116)*fixhdi(117),rmodarr,modidx,ierr)
 endif
 
-if (fixhdi(121) > 0) then
+if (has_data(fixhdi, 120)) then
    inewpos = fixhdi(120)
    onewpos = fixhdo(120)
    call readwrite_head_r(ichan,ochan,inewpos,onewpos, &
                          rhead,fixhdi(121)*fixhdi(122),rmodarr,modidx,ierr)
 endif
 
-if (fixhdi(126) > 0) then
+if (has_data(fixhdi, 125)) then
    inewpos = fixhdi(125)
    onewpos = fixhdo(125)
    if (lbathy) then
@@ -352,7 +352,7 @@ if (lireplace .or. liadd) then
                         lireplace, liadd, islandsfile)
 else
    ! Default copying of island data.
-   if (fixhdi(131) > 0) then
+   if (has_data(fixhdi, 130)) then
       inewpos = fixhdi(130)
       onewpos = fixhdo(130)
       call readwrite_head_r(ichan,ochan,inewpos,onewpos, &
@@ -360,28 +360,28 @@ else
    endif
 end if
 
-if (fixhdi(136) > 0) then
+if (has_data(fixhdi, 135)) then
    inewpos = fixhdi(135)
    onewpos = fixhdo(135)
    call readwrite_head_r(ichan,ochan,inewpos,onewpos, &
                          rhead,fixhdi(136),rmodarr,modidx,ierr)
 endif
 
-if (fixhdi(141) > 0) then
+if (has_data(fixhdi, 140)) then
    inewpos = fixhdi(140)
    onewpos = fixhdo(140)
    call readwrite_head_i(ichan,ochan,inewpos,onewpos, &
                          ihead,fixhdi(141),imodarr,modidx,ierr)
 endif
 
-if (fixhdi(143) > 0) then
+if (has_data(fixhdi, 142)) then
    inewpos = fixhdi(142)
    onewpos = fixhdo(142)
    call readwrite_head_i(ichan,ochan,inewpos,onewpos, &
                          ihead,fixhdi(143),imodarr,modidx,ierr)
 endif
 
-if (fixhdi(145) > 0) then
+if (has_data(fixhdi, 144)) then
    inewpos = fixhdi(144)
    onewpos = fixhdo(144)
    call readwrite_head_i(ichan,ochan,inewpos,onewpos, &

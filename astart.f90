@@ -279,7 +279,7 @@ allocate (rhead(rhead_dim))
 
 ! Read/write headers
 
-if (fixhd(101) > 0) then
+if (has_data(fixhd, 100)) then
    inewpos = fixhd(100)
    onewpos = fixhd(100)
    if (lnewlsm) then
@@ -297,7 +297,7 @@ if (fixhd(101) > 0) then
    endif
 endif
 
-if (fixhd(106) > 0) then
+if (has_data(fixhd, 105)) then
    inewpos = fixhd(105)
    onewpos = fixhd(105)
    modidx(1) = 8  ; rmodarr(1) = fixhd(28)
@@ -311,63 +311,63 @@ if (fixhd(106) > 0) then
    modidx(1) = -1
 endif
 
-if (fixhd(111) > 0) then
+if (has_data(fixhd, 110)) then
    inewpos = fixhd(110)
    onewpos = fixhd(110)
    call readwrite_head_r(ichan,ochan,inewpos,onewpos, &
                          rhead,fixhd(111)*fixhd(112),rmodarr,modidx,ierr)
 endif
 
-if (fixhd(116) > 0) then
+if (has_data(fixhd, 115)) then
    inewpos = fixhd(115)
    onewpos = fixhd(115)
    call readwrite_head_r(ichan,ochan,inewpos,onewpos, &
                          rhead,fixhd(116)*fixhd(117),rmodarr,modidx,ierr)
 endif
 
-if (fixhd(121) > 0) then
+if (has_data(fixhd, 120)) then
    inewpos = fixhd(120)
    onewpos = fixhd(120)
    call readwrite_head_r(ichan,ochan,inewpos,onewpos, &
                          rhead,fixhd(121)*fixhd(122),rmodarr,modidx,ierr)
 endif
 
-if (fixhd(126) > 0) then
+if (has_data(fixhd, 125)) then
    inewpos = fixhd(125)
    onewpos = fixhd(125)
    call readwrite_head_r(ichan,ochan,inewpos,onewpos, &
                          rhead,fixhd(126)*fixhd(127),rmodarr,modidx,ierr)
 endif
 
-if (fixhd(131) > 0) then
+if (has_data(fixhd, 130)) then
    inewpos = fixhd(130)
    onewpos = fixhd(130)
    call readwrite_head_r(ichan,ochan,inewpos,onewpos, &
                          rhead,fixhd(131),rmodarr,modidx,ierr)
 endif
 
-if (fixhd(136) > 0) then
+if (has_data(fixhd, 135)) then
    inewpos = fixhd(135)
    onewpos = fixhd(135)
    call readwrite_head_r(ichan,ochan,inewpos,onewpos, &
                          rhead,fixhd(136),rmodarr,modidx,ierr)
 endif
 
-if (fixhd(141) > 0) then
+if (has_data(fixhd, 140)) then
    inewpos = fixhd(140)
    onewpos = fixhd(140)
    call readwrite_head_i(ichan,ochan,inewpos,onewpos, &
                          ihead,fixhd(141),imodarr,modidx,ierr)
 endif
 
-if (fixhd(143) > 0) then
+if (has_data(fixhd, 142)) then
    inewpos = fixhd(142)
    onewpos = fixhd(142)
    call readwrite_head_i(ichan,ochan,inewpos,onewpos, &
                          ihead,fixhd(143),imodarr,modidx,ierr)
 endif
 
-if (fixhd(145) > 0) then
+if (has_data(fixhd, 144)) then
    inewpos = fixhd(144)
    onewpos = fixhd(144)
    call readwrite_head_i(ichan,ochan,inewpos,onewpos, &

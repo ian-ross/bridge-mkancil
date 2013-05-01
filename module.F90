@@ -425,6 +425,27 @@ call update_date(end2(1), end2(2), end2(3), cal)
 
 end subroutine date_diff
 
+
+!==============================================================================!
+!
+! Check dump file fixed header arrays
+!
+!==============================================================================!
+
+pure function has_data(fixhd, offset)
+
+use constants
+
+implicit none
+
+integer, dimension(:), intent(in) :: fixhd
+integer, intent(in) :: offset
+logical :: has_data
+
+has_data = fixhd(offset) /= IMDI .and. fixhd(offset+1) > 0
+
+end function has_data
+
 end module utils
 
 
@@ -490,7 +511,7 @@ if (modeltype == 1) then
 else if (modeltype == 2) then
    ! Ocean model
    select case (leveltype)
-   case (0, 129)
+   case (0, 1, 129)
       ! Single level
       levels_from_stash = 1
    case (2)
