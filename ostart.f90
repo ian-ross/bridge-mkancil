@@ -8,6 +8,7 @@ subroutine create_ostart(umfilein, umfileout, nncfiles1, oncfiles, &
                          lusestdname, luseconfig, &
                          lbathy, bathyfile, bathyncname, lbathydepthmask, &
                          lireplace, liadd, islandsfile)
+
 use getkind
 use lsmask
 use constants
@@ -15,6 +16,7 @@ use parameters
 use config
 use types
 use stashlevels
+use utils
 
 implicit none
 
@@ -26,6 +28,7 @@ character(*) oncfiles(nncfiles1),umfileout,umfilein,ncname(nitem+1)
 logical lbathy,lbathydepthmask,lireplace,liadd
 character(*) bathyfile,bathyncname,islandsfile
 
+integer ienddate(6)
 integer(itype), dimension(:), allocatable ::  dum
 logical l32bit_save,lwfio_save,lum,lswappack
 integer iwfio_size_save,max_isize,max_rsize
@@ -232,9 +235,11 @@ endif
 ! Set date and time fixed length header values
 
 if (itimeusage1 == 1 .or. itimeusage1 == 0) then
+   call date_diff(fixhdi(8), fixhdi(21:26), fixhdi(28:33), &
+        istartdate(1:6), ienddate(1:6))
    fixhdo(21:26) = istartdate(1:6)
    fixhdo(27) = get_daynum(fixhdo(21),fixhdo(22),fixhdo(23),fixhdo(8))
-   fixhdo(28:33) = istartdate(1:6)
+   fixhdo(28:33) = ienddate(1:6)
    fixhdo(34) = get_daynum(fixhdo(28),fixhdo(29),fixhdo(30),fixhdo(8))
 endif
 

@@ -372,6 +372,59 @@ enddo
 
 end subroutine upcase
 
+
+!==============================================================================!
+!
+! Date offsetting for dump file header fixups
+!
+!==============================================================================!
+
+subroutine date_diff(cal, start1, end1, start2, end2)
+
+implicit none
+
+integer, intent(in) :: cal      ! 1 => Gregorian, 2 => 360 day
+integer, intent(in), dimension(6) :: start1, end1, start2
+integer, intent(out), dimension(6) :: end2
+
+! Basic calculation
+end2 = start2 + end1 - start1
+
+! Fix seconds
+do while (end2(6) >= 60)
+   end2(6) = end2(6) - 60
+   end2(5) = end2(5) + 1
+end do
+do while (end2(6) < 0)
+   end2(6) = end2(6) + 60
+   end2(5) = end2(5) - 1
+end do
+
+! Fix minutes
+do while (end2(5) >= 60)
+   end2(5) = end2(5) - 60
+   end2(4) = end2(4) + 1
+end do
+do while (end2(5) < 0)
+   end2(5) = end2(5) + 60
+   end2(4) = end2(4) - 1
+end do
+
+! Fix hours
+do while (end2(4) >= 24)
+   end2(4) = end2(4) - 24
+   end2(3) = end2(3) + 1
+end do
+do while (end2(4) < 0)
+   end2(4) = end2(4) + 24
+   end2(3) = end2(3) - 1
+end do
+
+! Fix date
+call update_date(end2(1), end2(2), end2(3), cal)
+
+end subroutine date_diff
+
 end module utils
 
 

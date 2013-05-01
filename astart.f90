@@ -14,6 +14,7 @@ use parameters
 use config
 use types
 use stashlevels
+use utils
 
 implicit none
 
@@ -23,6 +24,7 @@ integer itimeusage1,itimeusage2,istartdate(6)
 logical lnewlsm,lusestdname,luseconfig
 character(*) ancfiles(nncfiles1),umfileout,umfilein,ncname(nitem+1)
 
+integer ienddate(6)
 character(3) intype,outtype
 character(max_varname_size) varname
 character(max_stdname_size) stdname
@@ -230,9 +232,11 @@ endif
 ! Set date and time fixed length header values
 
 if (itimeusage1 == 1 .or. itimeusage1 == 0) then
+   call date_diff(fixhd(8), fixhd(21:26), fixhd(28:33), &
+        istartdate(1:6), ienddate(1:6))
    fixhd(21:26) = istartdate(1:6)
    fixhd(27) = get_daynum(fixhd(21),fixhd(22),fixhd(23),fixhd(8))
-   fixhd(28:33) = istartdate(1:6)
+   fixhd(28:33) = ienddate(1:6)
    fixhd(34) = get_daynum(fixhd(28),fixhd(29),fixhd(30),fixhd(8))
 endif
 
@@ -296,8 +300,15 @@ endif
 if (fixhd(106) > 0) then
    inewpos = fixhd(105)
    onewpos = fixhd(105)
+   modidx(1) = 8  ; rmodarr(1) = fixhd(28)
+   modidx(2) = 9  ; rmodarr(2) = fixhd(34)
+   modidx(3) = 10 ; rmodarr(3) = fixhd(31)
+   modidx(4) = 11 ; rmodarr(4) = fixhd(32)
+   modidx(5) = 12 ; rmodarr(5) = fixhd(33)
+   modidx(6) = -1
    call readwrite_head_r(ichan,ochan,inewpos,onewpos, &
                          rhead,fixhd(106),rmodarr,modidx,ierr)
+   modidx(1) = -1
 endif
 
 if (fixhd(111) > 0) then
