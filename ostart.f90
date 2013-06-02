@@ -985,8 +985,23 @@ if (old_len > max_islands_len) then
    stop
 end if
 inewpos = fixhdi(130)
-call skip(ichan, curpos, inewpos)
-call rdblkr(old_islands, old_len, old_len, ichan, curpos, ieof)
+write (*,*) 'Old islands pos = ', inewpos
+write (*,*) 'Old islands len = ', old_len
+if (old_len == 0 .or. old_len == IMDI .or. inewpos == IMDI) then
+   ! Deal with case of empty islands in input dump file.
+   lireplace = .true.
+   liadd = .false.
+   old_len = 0
+   fixhdo(130) = fixhdo(135)
+   if (fixhdo(130) == IMDI) fixhdo(130) = fixhdo(140)
+   if (fixhdo(130) == IMDI) fixhdo(130) = fixhdo(142)
+   if (fixhdo(130) == IMDI) fixhdo(130) = fixhdo(144)
+   if (fixhdo(130) == IMDI) fixhdo(130) = fixhdo(150)
+   if (fixhdo(130) == IMDI) fixhdo(130) = fixhdo(160)
+else
+   call skip(ichan, curpos, inewpos)
+   call rdblkr(old_islands, old_len, old_len, ichan, curpos, ieof)
+end if
 
 ! Read new island data.
 call read_islands_file(islandsfile, new_len, max_islands_len, new_islands)
