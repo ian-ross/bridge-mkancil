@@ -154,7 +154,7 @@ proc ostart_uminfile {win file} {
         set mnew {}
         foreach m $ostart(mods) {
             if {[lsearch $stashlist [lindex $m 0]] != -1} {
-                set mnew [lappend $mnew $m]
+                lappend mnew $m
             }
         }
         if {[llength $ostart(mods)] > [llength $mnew]} {
