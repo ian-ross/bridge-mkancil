@@ -1,6 +1,6 @@
 package provide xancil "1.0"
 
-set xancil_version 0.60
+set xancil_version 0.61
 set versiondate 3-June-2013
 #set versiondate Development
 set HOMEDIR [pwd]

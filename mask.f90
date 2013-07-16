@@ -142,7 +142,7 @@ integer(itype), dimension(:,:), allocatable :: imask,ioutflow
 real(rtype), dimension(:,:), allocatable :: aoutflow
 real(rtype) rmdi_nc
 integer(ptype) ochan
-integer nfield,datasize,nftype,inthd8,datatype,ztype
+integer nfield,datasize,nftype,inthd8,datatype,ztype,type
 integer(otype) pp_pos,data_pos
 integer fieldcode,proccode,levcode,stashcode,fftype,fflev,istart
 integer intunit,interval,idate(6)
@@ -219,6 +219,7 @@ deallocate(imask)
 if (loutflow) then
 
    model = 1 ! atmos model ancillary file
+   type = 1  ! data on atmospheric theta points
 
 !  Open netcdf file
 
@@ -226,7 +227,7 @@ if (loutflow) then
 
 !  Get ancil dimension values
 
-   call get_gridinfo(ncofname,ncid,dimnames,dim,nz,nt,model,grid)
+   call get_gridinfo(ncofname,ncid,dimnames,dim,nz,nt,model,type,grid)
    nx = grid%nlong
    ny = grid%nlat
 
