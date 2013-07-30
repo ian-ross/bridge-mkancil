@@ -1,4 +1,4 @@
-VERSION=0.61
+VERSION=0.62
 EXEC=mkancil$(VERSION)
 XANCIL=xancil$(VERSION)
 SHLIB=xancil.so
