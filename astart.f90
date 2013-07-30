@@ -52,7 +52,8 @@ real(rtype) rmodarr(100),unres_val
 real(rtype) , dimension(:), allocatable :: rhead,rdata,rtmp
 real(r32) rmdi32
 logical lum,l32bit_save,lwfio_save,lgetinputmask,lswappack,lreplace
-logical , dimension(:), allocatable :: lmaskin,mask1,unres_land
+logical , dimension(:), allocatable :: lmaskin,mask1,unres_land,compmask
+logical :: gotmask
 
 integer nlookup
 integer(itype), dimension(:,:), allocatable :: in_ilookup, ilookup
@@ -100,6 +101,7 @@ if (luseconfig .and. lwfio .and. iwfio_size > 1) then
    dum = 0
 endif
 lgetinputmask = lnewlsm
+gotmask = .false.
 imask_field = -1
 max_isize = 0
 max_rsize = 0
@@ -560,23 +562,27 @@ do i = 1, nlookup
 
 !  Get land/sea mask data from dump if needed
 
+   if (ilookup(i,42) == 30 .and. .not. gotmask) then
+      gotmask = .true.
+      imask_field = i
+      mask_size = ilookup(i,19)*ilookup(i,18)
+      allocate(lmaskin(mask_size))
+      savepos = inewpos
+      if (ilookup(i,29) /= 0 .and. ilookup(i,29) /= imdi) then
+         imaskin_pos = ilookup(i,29)+1
+      else
+         imaskin_pos = data_pos1+1
+      endif
+      write(*,*)'imaskin_pos = ',imaskin_pos
+      call read_data_i(ichan,imaskin_pos,lmaskin,ilookup(i,19),ilookup(i,18))
+      call skip(ichan,inewpos,savepos)
+      write(*,*)'input nlandpts = ',count(lmaskin)
+   endif
+
    if (lgetinputmask .and. ilookup(i,42) == 30) then
       if (ilookup(i,19) == mask_grid%nlong .and. &
            ilookup(i,18) == mask_grid%nlat) then
          lgetinputmask = .false.
-         imask_field = i
-         mask_size = ilookup(i,19)*ilookup(i,18)
-         allocate(lmaskin(mask_size))
-         savepos = inewpos
-         if (ilookup(i,29) /= 0 .and. ilookup(i,29) /= imdi) then
-            imaskin_pos = ilookup(i,29)+1
-         else
-            imaskin_pos = data_pos1+1
-         endif
-         write(*,*)'imaskin_pos = ',imaskin_pos
-         call read_data_i(ichan,imaskin_pos,lmaskin,ilookup(i,19),ilookup(i,18))
-         call skip(ichan,inewpos,savepos)
-         write(*,*)'input nlandpts = ',count(lmaskin)
       else
          write(*,*)'Wrong size mask at position ',i
          write(*,*)ilookup(i,19),mask_grid%nlong
@@ -699,6 +705,11 @@ if (lnewlsm .and. .not. allocated(lmaskin)) then
    stop
 endif
 
+if (any(data_comp /= 0) .and. .not. allocated(lmaskin)) then
+   write (*,*) 'ERROR: Compressed fields present, but no land mask in UM dump'
+   stop
+endif
+
 if (lnewlsm) then
    allocate(mask1(mask_size))
    allocate(unres_land(mask_size))
@@ -735,6 +746,13 @@ if (lnewlsm) then
    max_count = maxval(icount)
    write(*,*)'max_count = ',max_count
 endif
+
+allocate(compmask(mask_size))
+if (lnewlsm) then
+   compmask = reshape(mask, (/ mask_size /))
+else
+   compmask = lmaskin
+end if
 
 write(*,*)'max_isize = ',max_isize
 write(*,*)'max_rsize = ',max_rsize
@@ -791,7 +809,8 @@ do i=1,nlookup
                                        varname,ierr)
          if (ierr /= 0) then
             write(*,*)'ERROR: standard name ',trim(stdname), &
-                      ' not found in NetCDF file ',trim(ancfiles(ncfileid(iitem)))
+                      ' not found in NetCDF file ', &
+                      trim(ancfiles(ncfileid(iitem)))
             stop
          endif
          write(*,*)'variable name for standard name ',trim(stdname),' = ', &
@@ -801,18 +820,47 @@ do i=1,nlookup
       endif
       if (data_type(i) == 1) then
          rdata = 0.0_rtype
-         call get_ncfield_r(ncid(ncfileid(iitem)),varname,ilev,model, &
-                            itimeusage1,itimeusage2,istartdate, &
-                            rdata,data_size_i(i))
          call get_ncmdi_r(varname,ncid(ncfileid(iitem)),rmdi_nc)
-         where (rdata == rmdi_nc) rdata = rmdi
+         if (data_comp(i) == 0) then
+            call get_ncfield_r(ncid(ncfileid(iitem)),varname,ilev,model, &
+                               itimeusage1,itimeusage2,istartdate, &
+                               rdata,data_size_i(i))
+            where (rdata == rmdi_nc) rdata = rmdi
+         else
+            if (.not. allocated(rtmp)) allocate(rtmp(mask_size))
+            call get_ncfield_r(ncid(ncfileid(iitem)), varname, ilev, model, &
+                               itimeusage1, itimeusage2, istartdate, &
+                               rtmp, mask_size)
+            where (rtmp == rmdi_nc) rtmp = rmdi
+            if (data_comp(i) == 1) then
+               call comp_land_data(rtmp, compmask, mask_size, rdata, nlandpts)
+            else
+               call comp_land_data(rtmp, .not. compmask, mask_size, &
+                    rdata, mask_size - nlandpts)
+            end if
+         end if
       else
          idata = 0
-         call get_ncfield_i(ncid(ncfileid(iitem)),varname,ilev,model, &
-                            itimeusage1,itimeusage2,istartdate, &
-                            idata,data_size_i(i))
          call get_ncmdi_i(varname,ncid(ncfileid(iitem)),imdi_nc)
-         where (idata == imdi_nc) idata = imdi
+         if (data_comp(i) == 0) then
+            call get_ncfield_i(ncid(ncfileid(iitem)),varname,ilev,model, &
+                               itimeusage1,itimeusage2,istartdate, &
+                               idata,data_size_i(i))
+            where (idata == imdi_nc) idata = imdi
+         else
+            if (.not. allocated(itmp32)) allocate(itmp32(mask_size))
+            call get_ncfield_i(ncid(ncfileid(iitem)),varname,ilev,model, &
+                               itimeusage1,itimeusage2,istartdate, &
+                               itmp32, mask_size)
+            where (itmp32 == imdi_nc) itmp32 = imdi
+            if (data_comp(i) == 1) then
+               call comp_land_data32(itmp32, compmask, mask_size, &
+                    idata, nlandpts)
+            else
+               call comp_land_data32(itmp32, .not. compmask, mask_size, &
+                    idata, mask_size - nlandpts)
+            end if
+         end if
       endif
 
       if (i == nlookup) then
@@ -901,8 +949,9 @@ if (nitem > 0) then
    deallocate (ncid)
 endif
 
+deallocate(compmask,lmaskin)
 if (lnewlsm) then
-   deallocate(lmaskin,unres_land,mask1)
+   deallocate(unres_land,mask1)
    deallocate(index,point,nsum,icount)
 endif
 deallocate (data_pack,data_type,data_comp,stash_code)
